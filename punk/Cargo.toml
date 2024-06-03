@@ -3,3 +3,4 @@ name = "punk_terminal"
 version = "0.1.0"
 
 [dependencies]
+lazy_static = "1.4"

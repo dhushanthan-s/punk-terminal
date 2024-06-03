@@ -5,10 +5,9 @@ mod terminal;
 fn main() {
     loop
     {
-        print!("? >");
-        io::stdout().flush().unwrap();
-        let mut cmd_to_execute = String::new();
-        io::stdin().read_line(&mut cmd_to_execute).expect("Error occured while fetching from input stream");
-        terminal::executor::execute(cmd_to_execute.trim());
+        println! ("{:?}",terminal::tty::read_tty());
+        if let Err(err) = terminal::tty::write_tty("hello".as_bytes()) {
+            eprintln!("Error writing to TTY: {}", err);
+        }
     }
 }
