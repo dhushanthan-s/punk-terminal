@@ -1,13 +1,20 @@
-use std::io;
-use std::io::Write;
+extern crate k_board;
+
+use k_board::keys::Keys;
 
 mod terminal;
+mod keyboard;
+
 fn main() {
+    let mut c = 1;
     loop
     {
-        println! ("{:?}",terminal::tty::read_tty());
-        if let Err(err) = terminal::tty::write_tty("hello".as_bytes()) {
-            eprintln!("Error writing to TTY: {}", err);
+        let key:Keys = keyboard::buffer::watch();
+        println!("{:?}", key);
+        c+=1;
+        if(c==10)
+        {
+            break;
         }
     }
 }
