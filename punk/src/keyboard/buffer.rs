@@ -1,19 +1,3 @@
-// use k_board::{keyboard::Keyboard, keys::Keys};
-
-// pub fn watch() -> Option<Keys>
-// {
-//     for key in Keyboard::new() {
-//         match key {
-//             Keys::Enter => {
-//                 break;
-//             }
-//             _ => {return Some(key)}
-//         }
-//     }
-
-//     return Some(Keys::Enter);
-// }
-
 use k_board::{keyboard::Keyboard, keys::Keys};
 
 pub fn watch() -> Keys {
