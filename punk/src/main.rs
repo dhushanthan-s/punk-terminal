@@ -7,6 +7,7 @@ mod keyboard;
 
 
 fn main() {
+    let clc : u8 = 21;
     loop
     {
         let key:Keys = keyboard::buffer::watch();
@@ -20,6 +21,7 @@ fn main() {
             break;
         }
         keyboard::manager::map_activity(key);
-        println!("{:?}",keyboard::manager::get_buffer())
+        terminal::tty::write_tty(&[clc]);
+        terminal::tty::write_tty(keyboard::manager::get_buffer().as_bytes());
     }
 }
