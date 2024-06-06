@@ -1,14 +1,28 @@
-use std::io;
-use std::io::Write;
+extern crate k_board;
+extern crate serde;
+extern crate serde_yaml;
 
 mod terminal;
+mod keyboard;
+mod configurer;
+
+use k_board::keys::Keys;
+use terminal::tty::*;
+use keyboard::buffer::*;
+use keyboard::manager::*;
+
+
+
 fn main() {
+    terminal::executor::execute("pwd");
     loop
     {
-        print!("? >");
-        io::stdout().flush().unwrap();
-        let mut cmd_to_execute = String::new();
-        io::stdin().read_line(&mut cmd_to_execute).expect("Error occured while fetching from input stream");
-        terminal::executor::execute(cmd_to_execute.trim());
+        let key:Keys = watch();
+        if key.eq(&Keys::Null)
+        {
+            continue;
+        }
+        map_activity(key);
+        let _ = write_tty(get_buffer().as_bytes());
     }
 }
