@@ -1,4 +1,5 @@
 use Keys;
+use keyboard::binder;
 
 pub struct Buffer {
     buffer: String,
@@ -14,7 +15,7 @@ impl Buffer {
     }
 
     fn handle_left(&mut self)   {
-        if(self.pointer > 0)    {
+        if self.pointer > 0    {
             self.pointer -= 1;
         }
     }
@@ -32,7 +33,7 @@ impl Buffer {
 
     fn backspace(&mut self)
     {
-        if(self.pointer == 0)
+        if self.pointer == 0
         {
             return ();
         }
@@ -41,7 +42,7 @@ impl Buffer {
 
         left_str.push_str(right_str.as_str());
         self.buffer =  left_str;
-        if( self.pointer > 0)
+        if self.pointer > 0
         {
             self.size -= 1;
             self.pointer -= 1;
@@ -50,7 +51,7 @@ impl Buffer {
 
     fn delete(&mut self)
     {
-        if(self.pointer >= self.size)
+        if self.pointer >= self.size
         {
             return ();
         }
@@ -78,8 +79,7 @@ impl Buffer {
 
     fn pass(&mut self, key: Keys)
     {
-        println!("Kindly handle {:?}", key);
-        ()
+        binder::handle_and_call(key);
     }
 
 }
@@ -93,7 +93,7 @@ pub fn map_activity(key: Keys)
         match key   {
             Keys::Left => BUFFER.handle_left(),
             Keys::Right => BUFFER.handle_right(),
-            Keys::Backtab => BUFFER.backspace(),
+            Keys::Backtab => BUFFER.delete(),
             Keys::Delete => BUFFER.backspace(),
             Keys::Char(' ') => BUFFER.push(' '),
             Keys::Char('!') => BUFFER.push('!'),

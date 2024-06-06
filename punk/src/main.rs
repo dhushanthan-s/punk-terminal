@@ -1,27 +1,28 @@
 extern crate k_board;
-
-use k_board::keys::Keys;
+extern crate serde;
+extern crate serde_yaml;
 
 mod terminal;
 mod keyboard;
+mod configurer;
+
+use k_board::keys::Keys;
+use terminal::tty::*;
+use keyboard::buffer::*;
+use keyboard::manager::*;
+
 
 
 fn main() {
-    let clc : u8 = 21;
+    terminal::executor::execute("pwd");
     loop
     {
-        let key:Keys = keyboard::buffer::watch();
-        if(key.eq(&Keys::Null))
+        let key:Keys = watch();
+        if key.eq(&Keys::Null)
         {
             continue;
         }
-        if(key.eq(&Keys::Ctrl('c')))
-        {
-            println!("Bye ...");
-            break;
-        }
-        keyboard::manager::map_activity(key);
-        terminal::tty::write_tty(&[clc]);
-        terminal::tty::write_tty(keyboard::manager::get_buffer().as_bytes());
+        map_activity(key);
+        let _ = write_tty(get_buffer().as_bytes());
     }
 }
