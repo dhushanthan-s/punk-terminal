@@ -1,6 +1,0 @@
----
-ctrl-n: clear
-ctrl-w: clear
-ctrl-k: add_or_update_binding
-ctrl-e: exit
-ctrl-c: exit
