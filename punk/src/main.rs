@@ -5,6 +5,7 @@ extern crate serde_yaml;
 mod terminal;
 mod keyboard;
 mod configurer;
+mod base;
 
 use k_board::keys::Keys;
 use terminal::tty::*;
@@ -15,6 +16,8 @@ use keyboard::manager::*;
 
 fn main() {
     terminal::executor::execute("pwd");
+    base::init();
+    println!("{:?}",base::helper::get_current_os());
     loop
     {
         let key:Keys = watch();

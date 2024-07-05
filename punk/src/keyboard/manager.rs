@@ -7,6 +7,8 @@ pub struct Buffer {
     size: u32,
 }
 
+pub static mut KEY_ACTIVITY_MAPPER : fn(Keys) = linux_key_vs_activity_mapper as fn(Keys);
+
 impl Buffer {
     fn handle_right(&mut self) {
         if self.pointer < self.size {
@@ -87,6 +89,22 @@ impl Buffer {
 static mut BUFFER: Buffer = Buffer::new();
 
 pub fn map_activity(key: Keys)
+{
+    unsafe
+    {
+        KEY_ACTIVITY_MAPPER(key);
+    }
+}
+
+pub fn get_buffer() -> String
+{
+    unsafe
+    {
+        return BUFFER.get_buffer();
+    }
+}
+
+pub fn linux_key_vs_activity_mapper(key: Keys)
 {
     unsafe
     {
@@ -195,10 +213,220 @@ pub fn map_activity(key: Keys)
     }
 }
 
-pub fn get_buffer() -> String
+pub fn windows_key_vs_activity_mapper(key: Keys)
 {
     unsafe
     {
-        return BUFFER.get_buffer();
+        match key   {
+            Keys::Left => BUFFER.handle_left(),
+            Keys::Right => BUFFER.handle_right(),
+            Keys::Backtab => BUFFER.delete(),
+            Keys::Delete => BUFFER.backspace(),
+            Keys::Char(' ') => BUFFER.push(' '),
+            Keys::Char('!') => BUFFER.push('!'),
+            Keys::Char('"') => BUFFER.push('"'),
+            Keys::Char('#') => BUFFER.push('#'),
+            Keys::Char('$') => BUFFER.push('$'),
+            Keys::Char('%') => BUFFER.push('%'),
+            Keys::Char('&') => BUFFER.push('&'),
+            Keys::Char('\'') => BUFFER.push('\''),
+            Keys::Char('(') => BUFFER.push('('),
+            Keys::Char(')') => BUFFER.push(')'),
+            Keys::Char('*') => BUFFER.push('*'),
+            Keys::Char('+') => BUFFER.push('+'),
+            Keys::Char(',') => BUFFER.push(','),
+            Keys::Char('-') => BUFFER.push('-'),
+            Keys::Char('.') => BUFFER.push('.'),
+            Keys::Char('/') => BUFFER.push('/'),
+            Keys::Char('0') => BUFFER.push('0'),
+            Keys::Char('1') => BUFFER.push('1'),
+            Keys::Char('2') => BUFFER.push('2'),
+            Keys::Char('3') => BUFFER.push('3'),
+            Keys::Char('4') => BUFFER.push('4'),
+            Keys::Char('5') => BUFFER.push('5'),
+            Keys::Char('6') => BUFFER.push('6'),
+            Keys::Char('7') => BUFFER.push('7'),
+            Keys::Char('8') => BUFFER.push('8'),
+            Keys::Char('9') => BUFFER.push('9'),
+            Keys::Char(':') => BUFFER.push(':'),
+            Keys::Char(';') => BUFFER.push(';'),
+            Keys::Char('<') => BUFFER.push('<'),
+            Keys::Char('=') => BUFFER.push('='),
+            Keys::Char('>') => BUFFER.push('>'),
+            Keys::Char('?') => BUFFER.push('?'),
+            Keys::Char('@') => BUFFER.push('@'),
+            Keys::Char('A') => BUFFER.push('A'),
+            Keys::Char('B') => BUFFER.push('B'),
+            Keys::Char('C') => BUFFER.push('C'),
+            Keys::Char('D') => BUFFER.push('D'),
+            Keys::Char('E') => BUFFER.push('E'),
+            Keys::Char('F') => BUFFER.push('F'),
+            Keys::Char('G') => BUFFER.push('G'),
+            Keys::Char('H') => BUFFER.push('H'),
+            Keys::Char('I') => BUFFER.push('I'),
+            Keys::Char('J') => BUFFER.push('J'),
+            Keys::Char('K') => BUFFER.push('K'),
+            Keys::Char('L') => BUFFER.push('L'),
+            Keys::Char('M') => BUFFER.push('M'),
+            Keys::Char('N') => BUFFER.push('N'),
+            Keys::Char('O') => BUFFER.push('O'),
+            Keys::Char('P') => BUFFER.push('P'),
+            Keys::Char('Q') => BUFFER.push('Q'),
+            Keys::Char('R') => BUFFER.push('R'),
+            Keys::Char('S') => BUFFER.push('S'),
+            Keys::Char('T') => BUFFER.push('T'),
+            Keys::Char('U') => BUFFER.push('U'),
+            Keys::Char('V') => BUFFER.push('V'),
+            Keys::Char('W') => BUFFER.push('W'),
+            Keys::Char('X') => BUFFER.push('X'),
+            Keys::Char('Y') => BUFFER.push('Y'),
+            Keys::Char('Z') => BUFFER.push('Z'),
+            Keys::Char('[') => BUFFER.push('['),
+            Keys::Char('\\') => BUFFER.push('\\'),
+            Keys::Char(']') => BUFFER.push(']'),
+            Keys::Char('^') => BUFFER.push('^'),
+            Keys::Char('_') => BUFFER.push('_'),
+            Keys::Char('`') => BUFFER.push('`'),
+            Keys::Char('a') => BUFFER.push('a'),
+            Keys::Char('b') => BUFFER.push('b'),
+            Keys::Char('c') => BUFFER.push('c'),
+            Keys::Char('d') => BUFFER.push('d'),
+            Keys::Char('e') => BUFFER.push('e'),
+            Keys::Char('f') => BUFFER.push('f'),
+            Keys::Char('g') => BUFFER.push('g'),
+            Keys::Char('h') => BUFFER.push('h'),
+            Keys::Char('i') => BUFFER.push('i'),
+            Keys::Char('j') => BUFFER.push('j'),
+            Keys::Char('k') => BUFFER.push('k'),
+            Keys::Char('l') => BUFFER.push('l'),
+            Keys::Char('m') => BUFFER.push('m'),
+            Keys::Char('n') => BUFFER.push('n'),
+            Keys::Char('o') => BUFFER.push('o'),
+            Keys::Char('p') => BUFFER.push('p'),
+            Keys::Char('q') => BUFFER.push('q'),
+            Keys::Char('r') => BUFFER.push('r'),
+            Keys::Char('s') => BUFFER.push('s'),
+            Keys::Char('t') => BUFFER.push('t'),
+            Keys::Char('u') => BUFFER.push('u'),
+            Keys::Char('v') => BUFFER.push('v'),
+            Keys::Char('w') => BUFFER.push('w'),
+            Keys::Char('x') => BUFFER.push('x'),
+            Keys::Char('y') => BUFFER.push('y'),
+            Keys::Char('z') => BUFFER.push('z'),
+            Keys::Char('{') => BUFFER.push('{'),
+            Keys::Char('|') => BUFFER.push('|'),
+            Keys::Char('}') => BUFFER.push('}'),
+            Keys::Char('~') => BUFFER.push('~'),
+            _ =>  BUFFER.pass(key)
+        }
+    }
+}
+
+pub fn macos_key_vs_activity_mapper(key: Keys)
+{
+    unsafe
+    {
+        match key   {
+            Keys::Left => BUFFER.handle_left(),
+            Keys::Right => BUFFER.handle_right(),
+            Keys::Backtab => BUFFER.delete(),
+            Keys::Delete => BUFFER.backspace(),
+            Keys::Char(' ') => BUFFER.push(' '),
+            Keys::Char('!') => BUFFER.push('!'),
+            Keys::Char('"') => BUFFER.push('"'),
+            Keys::Char('#') => BUFFER.push('#'),
+            Keys::Char('$') => BUFFER.push('$'),
+            Keys::Char('%') => BUFFER.push('%'),
+            Keys::Char('&') => BUFFER.push('&'),
+            Keys::Char('\'') => BUFFER.push('\''),
+            Keys::Char('(') => BUFFER.push('('),
+            Keys::Char(')') => BUFFER.push(')'),
+            Keys::Char('*') => BUFFER.push('*'),
+            Keys::Char('+') => BUFFER.push('+'),
+            Keys::Char(',') => BUFFER.push(','),
+            Keys::Char('-') => BUFFER.push('-'),
+            Keys::Char('.') => BUFFER.push('.'),
+            Keys::Char('/') => BUFFER.push('/'),
+            Keys::Char('0') => BUFFER.push('0'),
+            Keys::Char('1') => BUFFER.push('1'),
+            Keys::Char('2') => BUFFER.push('2'),
+            Keys::Char('3') => BUFFER.push('3'),
+            Keys::Char('4') => BUFFER.push('4'),
+            Keys::Char('5') => BUFFER.push('5'),
+            Keys::Char('6') => BUFFER.push('6'),
+            Keys::Char('7') => BUFFER.push('7'),
+            Keys::Char('8') => BUFFER.push('8'),
+            Keys::Char('9') => BUFFER.push('9'),
+            Keys::Char(':') => BUFFER.push(':'),
+            Keys::Char(';') => BUFFER.push(';'),
+            Keys::Char('<') => BUFFER.push('<'),
+            Keys::Char('=') => BUFFER.push('='),
+            Keys::Char('>') => BUFFER.push('>'),
+            Keys::Char('?') => BUFFER.push('?'),
+            Keys::Char('@') => BUFFER.push('@'),
+            Keys::Char('A') => BUFFER.push('A'),
+            Keys::Char('B') => BUFFER.push('B'),
+            Keys::Char('C') => BUFFER.push('C'),
+            Keys::Char('D') => BUFFER.push('D'),
+            Keys::Char('E') => BUFFER.push('E'),
+            Keys::Char('F') => BUFFER.push('F'),
+            Keys::Char('G') => BUFFER.push('G'),
+            Keys::Char('H') => BUFFER.push('H'),
+            Keys::Char('I') => BUFFER.push('I'),
+            Keys::Char('J') => BUFFER.push('J'),
+            Keys::Char('K') => BUFFER.push('K'),
+            Keys::Char('L') => BUFFER.push('L'),
+            Keys::Char('M') => BUFFER.push('M'),
+            Keys::Char('N') => BUFFER.push('N'),
+            Keys::Char('O') => BUFFER.push('O'),
+            Keys::Char('P') => BUFFER.push('P'),
+            Keys::Char('Q') => BUFFER.push('Q'),
+            Keys::Char('R') => BUFFER.push('R'),
+            Keys::Char('S') => BUFFER.push('S'),
+            Keys::Char('T') => BUFFER.push('T'),
+            Keys::Char('U') => BUFFER.push('U'),
+            Keys::Char('V') => BUFFER.push('V'),
+            Keys::Char('W') => BUFFER.push('W'),
+            Keys::Char('X') => BUFFER.push('X'),
+            Keys::Char('Y') => BUFFER.push('Y'),
+            Keys::Char('Z') => BUFFER.push('Z'),
+            Keys::Char('[') => BUFFER.push('['),
+            Keys::Char('\\') => BUFFER.push('\\'),
+            Keys::Char(']') => BUFFER.push(']'),
+            Keys::Char('^') => BUFFER.push('^'),
+            Keys::Char('_') => BUFFER.push('_'),
+            Keys::Char('`') => BUFFER.push('`'),
+            Keys::Char('a') => BUFFER.push('a'),
+            Keys::Char('b') => BUFFER.push('b'),
+            Keys::Char('c') => BUFFER.push('c'),
+            Keys::Char('d') => BUFFER.push('d'),
+            Keys::Char('e') => BUFFER.push('e'),
+            Keys::Char('f') => BUFFER.push('f'),
+            Keys::Char('g') => BUFFER.push('g'),
+            Keys::Char('h') => BUFFER.push('h'),
+            Keys::Char('i') => BUFFER.push('i'),
+            Keys::Char('j') => BUFFER.push('j'),
+            Keys::Char('k') => BUFFER.push('k'),
+            Keys::Char('l') => BUFFER.push('l'),
+            Keys::Char('m') => BUFFER.push('m'),
+            Keys::Char('n') => BUFFER.push('n'),
+            Keys::Char('o') => BUFFER.push('o'),
+            Keys::Char('p') => BUFFER.push('p'),
+            Keys::Char('q') => BUFFER.push('q'),
+            Keys::Char('r') => BUFFER.push('r'),
+            Keys::Char('s') => BUFFER.push('s'),
+            Keys::Char('t') => BUFFER.push('t'),
+            Keys::Char('u') => BUFFER.push('u'),
+            Keys::Char('v') => BUFFER.push('v'),
+            Keys::Char('w') => BUFFER.push('w'),
+            Keys::Char('x') => BUFFER.push('x'),
+            Keys::Char('y') => BUFFER.push('y'),
+            Keys::Char('z') => BUFFER.push('z'),
+            Keys::Char('{') => BUFFER.push('{'),
+            Keys::Char('|') => BUFFER.push('|'),
+            Keys::Char('}') => BUFFER.push('}'),
+            Keys::Char('~') => BUFFER.push('~'),
+            _ =>  BUFFER.pass(key)
+        }
     }
 }
