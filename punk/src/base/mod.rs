@@ -4,6 +4,7 @@ static INIT: Once = Once::new();
 
 pub mod helper;
 pub mod os;
+pub mod handler;
 
 pub fn init()
 {

@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use k_board::keys::Keys;
 use std::sync::Mutex;
 use keyboard::buffer::watch;
 use std::sync::Once;
@@ -7,6 +6,7 @@ use configurer;
 use std::io::BufReader;
 use serde_yaml::{Mapping, Value};
 use std::fs::{File, OpenOptions};
+use enums::Key;
 
 
 lazy_static::lazy_static! {
@@ -20,11 +20,8 @@ pub fn add_or_update_binding()
     let mut captured_key_name: String = "".to_string();
     while captured_key_name == "".to_string()
     {
-        let captured_key: Keys = watch();
-        if captured_key != Keys::Null
-        {
-            captured_key_name = key_fn_name_mapper(captured_key);
-        }
+        let captured_key: Key = watch();
+        captured_key_name = key_fn_name_mapper(captured_key);
     }
     println!("Captured {:?}", captured_key_name);
     print!("Action to perform : ");
@@ -36,10 +33,10 @@ pub fn add_or_update_binding()
     println!("Captured {} and mapped with {}", captured_key_name, action);
 }
 
-pub fn handle_and_call(key: Keys)
+pub fn handle_and_call(key: Key)
 {
     check_if_init();
-    let key_name: String = key_fn_name_mapper(key);
+    let key_name: String = key_fn_name_mapper(key.clone());
     let func_to_call;
 
     if let Some(func) = FUNCTION_MAP.lock().unwrap().get(&key_name) {
@@ -123,36 +120,36 @@ fn write_into_yml(filename:String)
     serde_yaml::to_writer(&mut file, &yaml_value).expect("Failed to write YAML");
 }
 
-fn key_fn_name_mapper(key: Keys) -> String
+fn key_fn_name_mapper(key: Key) -> String
 {
     match key
     {
-        Keys::Ctrl('a') => return "ctrl-a".to_string(),
-        Keys::Ctrl('b') => return "ctrl-b".to_string(),
-        Keys::Ctrl('c') => return "ctrl-c".to_string(),
-        Keys::Ctrl('d') => return "ctrl-d".to_string(),
-        Keys::Ctrl('e') => return "ctrl-e".to_string(),
-        Keys::Ctrl('f') => return "ctrl-f".to_string(),
-        Keys::Ctrl('g') => return "ctrl-g".to_string(),
-        Keys::Ctrl('h') => return "ctrl-h".to_string(),
-        Keys::Ctrl('i') => return "ctrl-i".to_string(),
-        Keys::Ctrl('j') => return "ctrl-j".to_string(),
-        Keys::Ctrl('k') => return "ctrl-k".to_string(),
-        Keys::Ctrl('l') => return "ctrl-l".to_string(),
-        Keys::Ctrl('m') => return "ctrl-m".to_string(),
-        Keys::Ctrl('n') => return "ctrl-n".to_string(),
-        Keys::Ctrl('o') => return "ctrl-o".to_string(),
-        Keys::Ctrl('p') => return "ctrl-p".to_string(),
-        Keys::Ctrl('q') => return "ctrl-q".to_string(),
-        Keys::Ctrl('r') => return "ctrl-r".to_string(),
-        Keys::Ctrl('s') => return "ctrl-s".to_string(),
-        Keys::Ctrl('t') => return "ctrl-t".to_string(),
-        Keys::Ctrl('u') => return "ctrl-u".to_string(),
-        Keys::Ctrl('v') => return "ctrl-v".to_string(),
-        Keys::Ctrl('w') => return "ctrl-w".to_string(),
-        Keys::Ctrl('x') => return "ctrl-x".to_string(),
-        Keys::Ctrl('y') => return "ctrl-y".to_string(),
-        Keys::Ctrl('z') => return "ctrl-z".to_string(),
+        Key::ctrl('a') => return "ctrl-a".to_string(),
+        Key::ctrl('b') => return "ctrl-b".to_string(),
+        Key::ctrl('c') => return "ctrl-c".to_string(),
+        Key::ctrl('d') => return "ctrl-d".to_string(),
+        Key::ctrl('e') => return "ctrl-e".to_string(),
+        Key::ctrl('f') => return "ctrl-f".to_string(),
+        Key::ctrl('g') => return "ctrl-g".to_string(),
+        Key::ctrl('h') => return "ctrl-h".to_string(),
+        Key::ctrl('i') => return "ctrl-i".to_string(),
+        Key::ctrl('j') => return "ctrl-j".to_string(),
+        Key::ctrl('k') => return "ctrl-k".to_string(),
+        Key::ctrl('l') => return "ctrl-l".to_string(),
+        Key::ctrl('m') => return "ctrl-m".to_string(),
+        Key::ctrl('n') => return "ctrl-n".to_string(),
+        Key::ctrl('o') => return "ctrl-o".to_string(),
+        Key::ctrl('p') => return "ctrl-p".to_string(),
+        Key::ctrl('q') => return "ctrl-q".to_string(),
+        Key::ctrl('r') => return "ctrl-r".to_string(),
+        Key::ctrl('s') => return "ctrl-s".to_string(),
+        Key::ctrl('t') => return "ctrl-t".to_string(),
+        Key::ctrl('u') => return "ctrl-u".to_string(),
+        Key::ctrl('v') => return "ctrl-v".to_string(),
+        Key::ctrl('w') => return "ctrl-w".to_string(),
+        Key::ctrl('x') => return "ctrl-x".to_string(),
+        Key::ctrl('y') => return "ctrl-y".to_string(),
+        Key::ctrl('z') => return "ctrl-z".to_string(),
         _ => return "".to_string()
     }
 }
