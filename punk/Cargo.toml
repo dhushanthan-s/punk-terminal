@@ -4,6 +4,6 @@ version = "0.1.0"
 
 [dependencies]
 lazy_static = "1.4"
-k_board = { version = "1.2.4", features = ["ctrl_lower_letter", "numbers", "lower_letter", "f", "standar", "ctrl_standar", "alt_lower_letter", "alt_upper_letter", "lower_letter", "upper_letter"] }
+libc = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.8"

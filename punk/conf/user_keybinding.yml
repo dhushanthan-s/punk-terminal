@@ -1,0 +1,5 @@
+---
+ctrl-k: add_or_update_binding
+ctrl-c: exit
+ctrl-w: clear
+ctrl-n: exit
