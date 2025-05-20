@@ -1,5 +1,4 @@
 use base::handler::*;
-use Key;
 
 #[cfg(target_os = "linux")]
 pub fn linux_specific_handler() {

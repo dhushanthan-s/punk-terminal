@@ -11,9 +11,6 @@ mod enums;
 use terminal::tty::*;
 use keyboard::buffer::*;
 use keyboard::manager::*;
-use std::io;
-use std::io::*;
-use enums::key_mapper;
 use enums::Key;
 
 
