@@ -1,5 +1,6 @@
 [package]
-name = "punk_terminal"
+name = "punk"
+authors = ["Suganth R", "Dhushanthan S"]
 version = "0.1.0"
 
 [dependencies]
