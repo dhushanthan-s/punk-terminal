@@ -1,10 +1,8 @@
-use enums::Key::*;
 use enums;
+use enums::Key::*;
 
-pub fn matcher(val : &[u8]) -> enums::Key
-{
-    match val
-    {
+pub fn matcher(val: &[u8]) -> enums::Key {
+    match val {
         [0] => return ctrl('a'),
         [1] => return ctrl('b'),
         [2] => return ctrl('c'),
@@ -133,7 +131,7 @@ pub fn matcher(val : &[u8]) -> enums::Key
         [27, 91, 68] => return arrow("left"),
         _ => {
             println!("{:?}", val);
-            return unknown
+            return unknown;
         }
     };
 }

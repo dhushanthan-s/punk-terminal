@@ -1,25 +1,23 @@
+extern crate libc;
 extern crate serde;
 extern crate serde_yaml;
-extern crate libc;
 
-mod terminal;
-mod keyboard;
-mod configurer;
 mod base;
+mod configurer;
 mod enums;
+mod keyboard;
+mod terminal;
 
-use terminal::tty::*;
+use enums::Key;
 use keyboard::buffer::*;
 use keyboard::manager::*;
-use enums::Key;
-
+use terminal::tty::*;
 
 fn main() {
     terminal::executor::execute("pwd");
     base::init();
-    loop
-    {
-        let key:Key = watch();
+    loop {
+        let key: Key = watch();
         map_activity(key);
         let _ = write_tty(get_buffer().as_bytes());
     }

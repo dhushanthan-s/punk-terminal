@@ -14,5 +14,4 @@ pub fn macos_specific_handler() {
 pub fn windows_specific_handler() {
     let handle = get_stdin_handle();
     let _ = windows_handler::enable_raw_mode(handle);
-    
 }

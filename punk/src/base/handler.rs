@@ -1,9 +1,9 @@
 #[cfg(unix)]
 pub mod unix_handler {
+    use libc::{ECHO, ICANON, TCSANOW, c_uint, tcgetattr, tcsetattr, termios};
     use std::io;
-    use std::os::unix::io::AsRawFd;
     use std::mem;
-    use libc::{termios, tcgetattr, tcsetattr, c_uint, ECHO, ICANON, TCSANOW};
+    use std::os::unix::io::AsRawFd;
 
     pub fn enable_raw_mode() -> io::Result<()> {
         let mut termios = unsafe { mem::zeroed::<termios>() };
@@ -25,13 +25,13 @@ pub mod unix_handler {
 pub mod windows_handler {
     use std::io;
     use std::os::windows::io::{AsRawHandle, RawHandle};
+    use winapi::um::consoleapi::{GetConsoleMode, SetConsoleMode};
+    use winapi::um::processenv::GetStdHandle;
     use winapi::um::wincon::{
         ENABLE_ECHO_INPUT, ENABLE_LINE_INPUT, ENABLE_MOUSE_INPUT, ENABLE_PROCESSED_INPUT,
         ENABLE_QUICK_EDIT_MODE,
     };
     use winapi::um::winnt::HANDLE;
-    use winapi::um::consoleapi::{GetConsoleMode, SetConsoleMode};
-    use winapi::um::processenv::GetStdHandle;
 
     pub fn enable_raw_mode(handle: HANDLE) -> io::Result<()> {
         let mut mode: u32 = 0;

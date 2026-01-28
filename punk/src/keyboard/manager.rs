@@ -1,5 +1,5 @@
-use keyboard::binder;
 use enums::Key;
+use keyboard::binder;
 
 pub struct Buffer {
     buffer: String,
@@ -8,11 +8,9 @@ pub struct Buffer {
 }
 
 #[cfg(target_os = "linux")]
-pub fn KEY_ACTIVITY_MAPPER(key: Key)
-{
-    unsafe
-    {
-        match key   {
+pub fn KEY_ACTIVITY_MAPPER(key: Key) {
+    unsafe {
+        match key {
             Key::arrow("left") => BUFFER.handle_left(),
             Key::arrow("right") => BUFFER.handle_right(),
             Key::Backspace => BUFFER.delete(),
@@ -112,16 +110,14 @@ pub fn KEY_ACTIVITY_MAPPER(key: Key)
             Key::letter('|') => BUFFER.push('|'),
             Key::letter('}') => BUFFER.push('}'),
             Key::letter('~') => BUFFER.push('~'),
-            _ =>  BUFFER.pass(key)
+            _ => BUFFER.pass(key),
         }
     }
 }
 #[cfg(target_os = "macos")]
-pub fn KEY_ACTIVITY_MAPPER(key: Key)
-{
-    unsafe
-    {
-        match key   {
+pub fn KEY_ACTIVITY_MAPPER(key: Key) {
+    unsafe {
+        match key {
             Key::arrow("left") => BUFFER.handle_left(),
             Key::arrow("right") => BUFFER.handle_right(),
             Key::Backspace => BUFFER.delete(),
@@ -221,16 +217,14 @@ pub fn KEY_ACTIVITY_MAPPER(key: Key)
             Key::letter('|') => BUFFER.push('|'),
             Key::letter('}') => BUFFER.push('}'),
             Key::letter('~') => BUFFER.push('~'),
-            _ =>  BUFFER.pass(key)
+            _ => BUFFER.pass(key),
         }
     }
 }
 #[cfg(target_os = "windows")]
-pub fn KEY_ACTIVITY_MAPPER(key: Key)
-{
-    unsafe
-    {
-        match key   {
+pub fn KEY_ACTIVITY_MAPPER(key: Key) {
+    unsafe {
+        match key {
             Key::arrow("left") => BUFFER.handle_left(),
             Key::arrow("right") => BUFFER.handle_right(),
             Key::Backspace => BUFFER.delete(),
@@ -330,7 +324,7 @@ pub fn KEY_ACTIVITY_MAPPER(key: Key)
             Key::letter('|') => BUFFER.push('|'),
             Key::letter('}') => BUFFER.push('}'),
             Key::letter('~') => BUFFER.push('~'),
-            _ =>  BUFFER.pass(key)
+            _ => BUFFER.pass(key),
         }
     }
 }
@@ -342,101 +336,87 @@ impl Buffer {
         }
     }
 
-    fn handle_left(&mut self)   {
-        if self.pointer > 0    {
+    fn handle_left(&mut self) {
+        if self.pointer > 0 {
             self.pointer -= 1;
         }
     }
 
-    fn push(&mut self, ch: char)  {
-        let mut left_str:String = self.buffer[..self.pointer as usize].to_string();
-        let right_str:String = self.buffer[self.pointer as usize ..(self.size) as usize].to_string();
+    fn push(&mut self, ch: char) {
+        let mut left_str: String = self.buffer[..self.pointer as usize].to_string();
+        let right_str: String =
+            self.buffer[self.pointer as usize..(self.size) as usize].to_string();
 
         left_str.push(ch);
         left_str.push_str(right_str.as_str());
-        self.buffer =  left_str;
+        self.buffer = left_str;
         self.pointer += 1;
         self.size += 1;
     }
 
-    fn backspace(&mut self)
-    {
-        if self.pointer == 0
-        {
+    fn backspace(&mut self) {
+        if self.pointer == 0 {
             return ();
         }
-        let mut left_str:String = self.buffer[..(self.pointer-1) as usize].to_string();
-        let right_str:String = self.buffer[self.pointer as usize ..(self.size) as usize].to_string();
+        let mut left_str: String = self.buffer[..(self.pointer - 1) as usize].to_string();
+        let right_str: String =
+            self.buffer[self.pointer as usize..(self.size) as usize].to_string();
 
         left_str.push_str(right_str.as_str());
-        self.buffer =  left_str;
-        if self.pointer > 0
-        {
+        self.buffer = left_str;
+        if self.pointer > 0 {
             self.size -= 1;
             self.pointer -= 1;
         }
     }
 
-    fn delete(&mut self)
-    {
-        if self.pointer >= self.size
-        {
+    fn delete(&mut self) {
+        if self.pointer >= self.size {
             return ();
         }
-        let mut left_str:String = self.buffer[..self.pointer as usize].to_string();
-        let right_str:String = self.buffer[(self.pointer+1) as usize ..(self.size) as usize].to_string();
+        let mut left_str: String = self.buffer[..self.pointer as usize].to_string();
+        let right_str: String =
+            self.buffer[(self.pointer + 1) as usize..(self.size) as usize].to_string();
 
         left_str.push_str(right_str.as_str());
-        self.buffer =  left_str;  
+        self.buffer = left_str;
         self.size -= 1;
     }
 
     pub const fn new() -> Buffer {
-        Buffer
-        {
-            buffer : String::new(),
-            pointer : 0,
-            size : 0,
+        Buffer {
+            buffer: String::new(),
+            pointer: 0,
+            size: 0,
         }
     }
 
-    fn get_buffer(&mut self) -> String
-    {
+    fn get_buffer(&mut self) -> String {
         return self.buffer.clone();
     }
 
-    fn pass(&mut self, key: Key)
-    {
+    fn pass(&mut self, key: Key) {
         binder::handle_and_call(key);
     }
-
 }
 
 static mut BUFFER: Buffer = Buffer::new();
 
-pub fn map_activity(key: Key)
-{
-    unsafe
-    {
+pub fn map_activity(key: Key) {
+    unsafe {
         KEY_ACTIVITY_MAPPER(key);
     }
 }
 
-pub fn get_buffer() -> String
-{
-    unsafe
-    {
+pub fn get_buffer() -> String {
+    unsafe {
         return BUFFER.get_buffer();
     }
 }
 
-
-
-pub fn windows_key_vs_activity_mapper(key: Key)
-{
-    unsafe
-    {
-        match key   {
+pub fn windows_key_vs_activity_mapper(key: Key) {
+    unsafe {
+        match key {
             Key::arrow("left") => BUFFER.handle_left(),
             Key::arrow("right") => BUFFER.handle_right(),
             Key::Backspace => BUFFER.delete(),
@@ -536,16 +516,14 @@ pub fn windows_key_vs_activity_mapper(key: Key)
             Key::letter('|') => BUFFER.push('|'),
             Key::letter('}') => BUFFER.push('}'),
             Key::letter('~') => BUFFER.push('~'),
-            _ =>  BUFFER.pass(key)
+            _ => BUFFER.pass(key),
         }
     }
 }
 
-pub fn macos_key_vs_activity_mapper(key: Key)
-{
-    unsafe
-    {
-        match key   {
+pub fn macos_key_vs_activity_mapper(key: Key) {
+    unsafe {
+        match key {
             Key::arrow("left") => BUFFER.handle_left(),
             Key::arrow("right") => BUFFER.handle_right(),
             Key::Backspace => BUFFER.delete(),
@@ -645,7 +623,7 @@ pub fn macos_key_vs_activity_mapper(key: Key)
             Key::letter('|') => BUFFER.push('|'),
             Key::letter('}') => BUFFER.push('}'),
             Key::letter('~') => BUFFER.push('~'),
-            _ =>  BUFFER.pass(key)
+            _ => BUFFER.pass(key),
         }
     }
 }

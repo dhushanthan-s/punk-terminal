@@ -20,10 +20,9 @@ lazy_static::lazy_static! {
 pub fn read_tty() -> String {
     let mut reader = READER.lock().unwrap();
     let mut input = String::new();
-    match reader.read_line(&mut input)
-    {
+    match reader.read_line(&mut input) {
         Ok(_) => return input.trim().to_string(),
-        Err(_) => return "Internal Error".to_string()
+        Err(_) => return "Internal Error".to_string(),
     }
 }
 

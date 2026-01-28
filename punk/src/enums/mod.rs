@@ -1,8 +1,7 @@
 pub mod key_mapper;
 
 #[derive(Debug, Clone)]
-pub enum Key<'a>
-{
+pub enum Key<'a> {
     letter(char),
     ctrl(char),
     arrow(&'a str),
@@ -10,5 +9,5 @@ pub enum Key<'a>
     Tab,
     Esc,
     Delete,
-    unknown
+    unknown,
 }
