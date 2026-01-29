@@ -12,3 +12,5 @@ version = "*"
 [dependencies]
 lazy_static = "1.4"
 libc = "0.2"
+serde = { workspace = true }
+serde_yaml = { workspace = true }

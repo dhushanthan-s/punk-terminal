@@ -10,7 +10,7 @@ pub mod unix_handler {
         if unsafe { tcgetattr(io::stdin().as_raw_fd(), &mut termios) } < 0 {
             return Err(io::Error::last_os_error());
         }
-        let original_termios = termios;
+        let _original_termios = termios;
         termios.c_lflag &= !(ICANON | ECHO);
         termios.c_cc[libc::VMIN] = 1;
         termios.c_cc[libc::VTIME] = 0;

@@ -1,7 +1,3 @@
-extern crate libc;
-extern crate serde;
-extern crate serde_yaml;
-
 mod base;
 mod configurer;
 mod enums;

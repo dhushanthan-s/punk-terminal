@@ -1,4 +1,4 @@
-use base::os::*;
+use crate::base::os::*;
 
 pub fn initialize_resource() {
     #[cfg(target_os = "linux")]
