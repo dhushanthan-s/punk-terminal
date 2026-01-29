@@ -16,7 +16,7 @@ pub fn add_or_update_binding() {
     check_if_init();
     println!("press ctrl + key to initialize key binding operation");
     let mut captured_key_name: String = "".to_string();
-    while captured_key_name == "".to_string() {
+    while captured_key_name.is_empty() {
         let captured_key: Key = watch();
         captured_key_name = key_fn_name_mapper(captured_key);
     }
@@ -122,33 +122,33 @@ fn write_into_yml(filename: String) {
 
 fn key_fn_name_mapper(key: Key) -> String {
     match key {
-        Key::Ctrl('a') => return "ctrl-a".to_string(),
-        Key::Ctrl('b') => return "ctrl-b".to_string(),
-        Key::Ctrl('c') => return "ctrl-c".to_string(),
-        Key::Ctrl('d') => return "ctrl-d".to_string(),
-        Key::Ctrl('e') => return "ctrl-e".to_string(),
-        Key::Ctrl('f') => return "ctrl-f".to_string(),
-        Key::Ctrl('g') => return "ctrl-g".to_string(),
-        Key::Ctrl('h') => return "ctrl-h".to_string(),
-        Key::Ctrl('i') => return "ctrl-i".to_string(),
-        Key::Ctrl('j') => return "ctrl-j".to_string(),
-        Key::Ctrl('k') => return "ctrl-k".to_string(),
-        Key::Ctrl('l') => return "ctrl-l".to_string(),
-        Key::Ctrl('m') => return "ctrl-m".to_string(),
-        Key::Ctrl('n') => return "ctrl-n".to_string(),
-        Key::Ctrl('o') => return "ctrl-o".to_string(),
-        Key::Ctrl('p') => return "ctrl-p".to_string(),
-        Key::Ctrl('q') => return "ctrl-q".to_string(),
-        Key::Ctrl('r') => return "ctrl-r".to_string(),
-        Key::Ctrl('s') => return "ctrl-s".to_string(),
-        Key::Ctrl('t') => return "ctrl-t".to_string(),
-        Key::Ctrl('u') => return "ctrl-u".to_string(),
-        Key::Ctrl('v') => return "ctrl-v".to_string(),
-        Key::Ctrl('w') => return "ctrl-w".to_string(),
-        Key::Ctrl('x') => return "ctrl-x".to_string(),
-        Key::Ctrl('y') => return "ctrl-y".to_string(),
-        Key::Ctrl('z') => return "ctrl-z".to_string(),
-        _ => return "".to_string(),
+        Key::Ctrl('a') => "ctrl-a".to_string(),
+        Key::Ctrl('b') => "ctrl-b".to_string(),
+        Key::Ctrl('c') => "ctrl-c".to_string(),
+        Key::Ctrl('d') => "ctrl-d".to_string(),
+        Key::Ctrl('e') => "ctrl-e".to_string(),
+        Key::Ctrl('f') => "ctrl-f".to_string(),
+        Key::Ctrl('g') => "ctrl-g".to_string(),
+        Key::Ctrl('h') => "ctrl-h".to_string(),
+        Key::Ctrl('i') => "ctrl-i".to_string(),
+        Key::Ctrl('j') => "ctrl-j".to_string(),
+        Key::Ctrl('k') => "ctrl-k".to_string(),
+        Key::Ctrl('l') => "ctrl-l".to_string(),
+        Key::Ctrl('m') => "ctrl-m".to_string(),
+        Key::Ctrl('n') => "ctrl-n".to_string(),
+        Key::Ctrl('o') => "ctrl-o".to_string(),
+        Key::Ctrl('p') => "ctrl-p".to_string(),
+        Key::Ctrl('q') => "ctrl-q".to_string(),
+        Key::Ctrl('r') => "ctrl-r".to_string(),
+        Key::Ctrl('s') => "ctrl-s".to_string(),
+        Key::Ctrl('t') => "ctrl-t".to_string(),
+        Key::Ctrl('u') => "ctrl-u".to_string(),
+        Key::Ctrl('v') => "ctrl-v".to_string(),
+        Key::Ctrl('w') => "ctrl-w".to_string(),
+        Key::Ctrl('x') => "ctrl-x".to_string(),
+        Key::Ctrl('y') => "ctrl-y".to_string(),
+        Key::Ctrl('z') => "ctrl-z".to_string(),
+        _ => "".to_string(),
     }
 }
 
@@ -161,5 +161,5 @@ fn exit() {
 }
 
 fn pass() {
-    ()
+    unimplemented!();
 }
