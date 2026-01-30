@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Write};
 use std::sync::Mutex;
+use std::process::Command;
 
 lazy_static::lazy_static! {
     pub static ref READER: Mutex<BufReader<File>> = {
@@ -29,4 +30,14 @@ pub fn read_tty() -> String {
 pub fn write_tty(output: &[u8]) -> io::Result<()> {
     let mut writer = WRITER.lock().unwrap();
     writer.write_all(output)
+}
+
+pub fn execute(cmd: &str) {
+    let raw_output = Command::new(cmd).output();
+
+    let output = raw_output.unwrap();
+
+    if output.status.success() {
+        println!("{}", String::from_utf8_lossy(&output.stdout));
+    }
 }

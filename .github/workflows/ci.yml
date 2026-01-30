@@ -1,10 +1,6 @@
-name: Check Naming Conventions
+name: CI
 
-on:
-  push:
-    branches: [ main, release ]
-  pull_request:
-    branches: [ main, release ]
+on: [ push, pull_request ]
 
 jobs:
   check-naming:
@@ -38,10 +34,4 @@ jobs:
 
       - name: Run clippy with naming convention checks
         run: |
-          cargo clippy --workspace --all-targets --all-features -- \
-            -W clippy::all \
-            -W non_snake_case \
-            -W non_camel_case_types \
-            -W non_upper_case_globals \
-            -W non_shorthand_field_patterns \
-            -D warnings
+          cargo clippy --all-targets

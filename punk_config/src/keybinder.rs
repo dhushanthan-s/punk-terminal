@@ -1,6 +1,6 @@
-use crate::configurer;
-use crate::enums::Key;
-use crate::keyboard::buffer::watch;
+use punk_terminal::event::keyboard::enums::Key;
+use punk_terminal::event::keyboard::enums::key_mapper;
+use punk::keyboard::buffer::watch;
 use serde_yaml::{Mapping, Value};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
@@ -18,7 +18,7 @@ pub fn add_or_update_binding() {
     let mut captured_key_name: String = "".to_string();
     while captured_key_name.is_empty() {
         let captured_key: Key = watch();
-        captured_key_name = key_fn_name_mapper(captured_key);
+        captured_key_name = key_mapper::key_fn_name_mapper(captured_key);
     }
     println!("Captured {:?}", captured_key_name);
     print!("Action to perform : ");
@@ -30,13 +30,13 @@ pub fn add_or_update_binding() {
         .lock()
         .unwrap()
         .insert(captured_key_name.to_string(), action.trim().to_string());
-    write_into_yml(configurer::path_of_file("user_keybinding.yml".to_string()));
+    write_into_yml(super::path_of_file("user_keybinding.yml".to_string()));
     println!("Captured {} and mapped with {}", captured_key_name, action);
 }
 
 pub fn handle_and_call(key: Key) {
     check_if_init();
-    let key_name: String = key_fn_name_mapper(key.clone());
+    let key_name: String = key_mapper::key_fn_name_mapper(key.clone());
     let func_to_call;
 
     if let Some(func) = FUNCTION_MAP.lock().unwrap().get(&key_name) {
@@ -57,13 +57,13 @@ fn check_if_init() {
 }
 
 fn key_binder_init() {
-    let default_file_path: String = configurer::path_of_file("default_keybinding.yml".to_string());
+    let default_file_path: String = super::path_of_file("default_keybinding.yml".to_string());
     let default_file = File::open(default_file_path.as_str()).unwrap();
     let default_reader = BufReader::new(default_file);
     let default_binding_map: HashMap<String, String> =
         serde_yaml::from_reader(default_reader).unwrap();
 
-    let user_file_path: String = configurer::path_to_user_conf("user_keybinding.yml".to_string());
+    let user_file_path: String = super::path_to_user_conf("user_keybinding.yml".to_string());
     let user_file = File::open(user_file_path.as_str());
     match user_file {
         Ok(user_file) => {
@@ -118,38 +118,6 @@ fn write_into_yml(filename: String) {
         Err(_) => File::create(filename.clone()).expect("Failed to create file"),
     };
     serde_yaml::to_writer(&mut file, &yaml_value).expect("Failed to write YAML");
-}
-
-fn key_fn_name_mapper(key: Key) -> String {
-    match key {
-        Key::Ctrl('a') => "ctrl-a".to_string(),
-        Key::Ctrl('b') => "ctrl-b".to_string(),
-        Key::Ctrl('c') => "ctrl-c".to_string(),
-        Key::Ctrl('d') => "ctrl-d".to_string(),
-        Key::Ctrl('e') => "ctrl-e".to_string(),
-        Key::Ctrl('f') => "ctrl-f".to_string(),
-        Key::Ctrl('g') => "ctrl-g".to_string(),
-        Key::Ctrl('h') => "ctrl-h".to_string(),
-        Key::Ctrl('i') => "ctrl-i".to_string(),
-        Key::Ctrl('j') => "ctrl-j".to_string(),
-        Key::Ctrl('k') => "ctrl-k".to_string(),
-        Key::Ctrl('l') => "ctrl-l".to_string(),
-        Key::Ctrl('m') => "ctrl-m".to_string(),
-        Key::Ctrl('n') => "ctrl-n".to_string(),
-        Key::Ctrl('o') => "ctrl-o".to_string(),
-        Key::Ctrl('p') => "ctrl-p".to_string(),
-        Key::Ctrl('q') => "ctrl-q".to_string(),
-        Key::Ctrl('r') => "ctrl-r".to_string(),
-        Key::Ctrl('s') => "ctrl-s".to_string(),
-        Key::Ctrl('t') => "ctrl-t".to_string(),
-        Key::Ctrl('u') => "ctrl-u".to_string(),
-        Key::Ctrl('v') => "ctrl-v".to_string(),
-        Key::Ctrl('w') => "ctrl-w".to_string(),
-        Key::Ctrl('x') => "ctrl-x".to_string(),
-        Key::Ctrl('y') => "ctrl-y".to_string(),
-        Key::Ctrl('z') => "ctrl-z".to_string(),
-        _ => "".to_string(),
-    }
 }
 
 fn clear() {

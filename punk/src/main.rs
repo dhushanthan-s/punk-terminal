@@ -1,16 +1,14 @@
 mod base;
 mod configurer;
-mod enums;
 mod keyboard;
-mod terminal;
 
-use enums::Key;
+use punk_terminal::event::keyboard::enums::Key;
 use keyboard::buffer::*;
-use keyboard::manager::*;
-use terminal::tty::*;
+use punk_terminal::event::keyboard::manager::*;
+use punk_terminal::tty::*;
 
 fn main() {
-    terminal::executor::execute("pwd");
+    execute("pwd");
     base::init();
     loop {
         let key: Key = watch();

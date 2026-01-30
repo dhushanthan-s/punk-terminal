@@ -1,5 +1,5 @@
-use crate::enums;
-use crate::enums::Key::*;
+use crate::event::keyboard::enums;
+use crate::event::keyboard::enums::Key::*;
 
 pub fn matcher(val: &[u8]) -> enums::Key<'_> {
     match val {
@@ -135,3 +135,36 @@ pub fn matcher(val: &[u8]) -> enums::Key<'_> {
         }
     }
 }
+
+pub fn key_fn_name_mapper(key: Key) -> String {
+    match key {
+        Key::Ctrl('a') => "ctrl-a".to_string(),
+        Key::Ctrl('b') => "ctrl-b".to_string(),
+        Key::Ctrl('c') => "ctrl-c".to_string(),
+        Key::Ctrl('d') => "ctrl-d".to_string(),
+        Key::Ctrl('e') => "ctrl-e".to_string(),
+        Key::Ctrl('f') => "ctrl-f".to_string(),
+        Key::Ctrl('g') => "ctrl-g".to_string(),
+        Key::Ctrl('h') => "ctrl-h".to_string(),
+        Key::Ctrl('i') => "ctrl-i".to_string(),
+        Key::Ctrl('j') => "ctrl-j".to_string(),
+        Key::Ctrl('k') => "ctrl-k".to_string(),
+        Key::Ctrl('l') => "ctrl-l".to_string(),
+        Key::Ctrl('m') => "ctrl-m".to_string(),
+        Key::Ctrl('n') => "ctrl-n".to_string(),
+        Key::Ctrl('o') => "ctrl-o".to_string(),
+        Key::Ctrl('p') => "ctrl-p".to_string(),
+        Key::Ctrl('q') => "ctrl-q".to_string(),
+        Key::Ctrl('r') => "ctrl-r".to_string(),
+        Key::Ctrl('s') => "ctrl-s".to_string(),
+        Key::Ctrl('t') => "ctrl-t".to_string(),
+        Key::Ctrl('u') => "ctrl-u".to_string(),
+        Key::Ctrl('v') => "ctrl-v".to_string(),
+        Key::Ctrl('w') => "ctrl-w".to_string(),
+        Key::Ctrl('x') => "ctrl-x".to_string(),
+        Key::Ctrl('y') => "ctrl-y".to_string(),
+        Key::Ctrl('z') => "ctrl-z".to_string(),
+        _ => "".to_string(),
+    }
+}
+

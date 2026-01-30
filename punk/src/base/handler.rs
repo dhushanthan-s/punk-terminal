@@ -1,6 +1,6 @@
 #[cfg(unix)]
 pub mod unix_handler {
-    use libc::{ECHO, ICANON, TCSANOW, c_uint, tcgetattr, tcsetattr, termios};
+    use libc::{ECHO, ICANON, TCSANOW, tcgetattr, tcsetattr, termios};
     use std::io;
     use std::mem;
     use std::os::unix::io::AsRawFd;

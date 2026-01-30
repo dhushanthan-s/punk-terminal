@@ -1,3 +1,0 @@
-ctrl-c : "exit"
-ctrl-w : "clear"
-ctrl-k : "add_or_update_binding"

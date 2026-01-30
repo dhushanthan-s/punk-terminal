@@ -1,5 +1,5 @@
 [package]
-name = "punk_terminal"
+name = "punk_config"
 authors = ["Dhushanthan S", "Suganth R"]
 version = "0.1.0"
 repository = "https://github.com/dhushanthan-s/punk-terminal"
@@ -8,3 +8,9 @@ rust-version.workspace = true
 
 [dependencies]
 lazy_static = { workspace = true }
+serde = { workspace = true }
+serde_yaml = { workspace = true }
+
+[dependencies.punk_terminal]
+path = "../punk_terminal"
+version = "*"

@@ -1,5 +1,5 @@
-use crate::enums::Key;
-use crate::keyboard::binder;
+use enums::Key;
+use punk::keyboard::buffer;
 
 pub struct Buffer {
     buffer: String,
@@ -290,7 +290,7 @@ impl Buffer {
     }
 
     fn pass(&mut self, key: Key) {
-        binder::handle_and_call(key);
+        buffer::handle_and_call(key);
     }
 }
 
