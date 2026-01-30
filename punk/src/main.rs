@@ -1,11 +1,8 @@
 mod base;
-mod configurer;
-mod keyboard;
 
-use punk_terminal::event::keyboard::enums::Key;
-use keyboard::buffer::*;
-use punk_terminal::event::keyboard::manager::*;
 use punk_terminal::tty::*;
+use punk_utils::input::Key;
+use punk_utils::input::*;
 
 fn main() {
     execute("pwd");

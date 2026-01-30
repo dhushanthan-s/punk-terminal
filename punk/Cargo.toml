@@ -12,6 +12,6 @@ libc = "0.2"
 path = "../punk_terminal"
 version = "*"
 
-[dependencies.punk_config]
-path = "../punk_config"
+[dependencies.punk_utils]
+path = "../punk_utils"
 version = "*"

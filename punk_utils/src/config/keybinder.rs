@@ -1,6 +1,6 @@
-use punk_terminal::event::keyboard::enums::Key;
-use punk_terminal::event::keyboard::enums::key_mapper;
-use punk::keyboard::buffer::watch;
+use crate::input::Key;
+use crate::input::keyboard;
+use crate::input::watch;
 use serde_yaml::{Mapping, Value};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
@@ -18,7 +18,7 @@ pub fn add_or_update_binding() {
     let mut captured_key_name: String = "".to_string();
     while captured_key_name.is_empty() {
         let captured_key: Key = watch();
-        captured_key_name = key_mapper::key_fn_name_mapper(captured_key);
+        captured_key_name = keyboard::key_fn_name_mapper(captured_key);
     }
     println!("Captured {:?}", captured_key_name);
     print!("Action to perform : ");
@@ -36,7 +36,7 @@ pub fn add_or_update_binding() {
 
 pub fn handle_and_call(key: Key) {
     check_if_init();
-    let key_name: String = key_mapper::key_fn_name_mapper(key.clone());
+    let key_name: String = keyboard::key_fn_name_mapper(key.clone());
     let func_to_call;
 
     if let Some(func) = FUNCTION_MAP.lock().unwrap().get(&key_name) {

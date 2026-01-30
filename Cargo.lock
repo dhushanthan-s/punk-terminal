@@ -56,18 +56,8 @@ name = "punk"
 version = "0.1.0"
 dependencies = [
  "libc",
- "punk_config",
  "punk_terminal",
-]
-
-[[package]]
-name = "punk_config"
-version = "0.1.0"
-dependencies = [
- "lazy_static",
- "punk_terminal",
- "serde",
- "serde_yaml",
+ "punk_utils",
 ]
 
 [[package]]
@@ -75,6 +65,15 @@ name = "punk_terminal"
 version = "0.1.0"
 dependencies = [
  "lazy_static",
+]
+
+[[package]]
+name = "punk_utils"
+version = "0.1.0"
+dependencies = [
+ "lazy_static",
+ "serde",
+ "serde_yaml",
 ]
 
 [[package]]

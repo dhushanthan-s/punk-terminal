@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["punk", "punk_terminal", "punk_config"]
+members = ["punk", "punk_terminal", "punk_utils"]
 
 [workspace.package]
 edition = "2024"

@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Write};
-use std::sync::Mutex;
 use std::process::Command;
+use std::sync::Mutex;
 
 lazy_static::lazy_static! {
     pub static ref READER: Mutex<BufReader<File>> = {

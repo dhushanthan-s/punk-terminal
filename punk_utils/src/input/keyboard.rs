@@ -1,16 +1,177 @@
-use enums::Key;
-use punk::keyboard::buffer;
+use super::Key;
+use super::Key::*;
 
-pub struct Buffer {
-    buffer: String,
-    pointer: u32,
-    size: u32,
+pub fn matcher(val: &[u8]) -> Key<'_> {
+    match val {
+        [0] => Ctrl('a'),
+        [1] => Ctrl('b'),
+        [2] => Ctrl('c'),
+        [3] => Ctrl('d'),
+        [4] => Ctrl('e'),
+        [5] => Ctrl('f'),
+        [6] => Ctrl('g'),
+        [7] => Ctrl('h'),
+        [8] => Backspace,
+        [9] => Tab,
+        [11] => Ctrl('k'),
+        [12] => Ctrl('l'),
+        [13] => Ctrl('m'),
+        [14] => Ctrl('n'),
+        [15] => Ctrl('o'),
+        [16] => Ctrl('p'),
+        [17] => Ctrl('q'),
+        [18] => Ctrl('r'),
+        [19] => Ctrl('s'),
+        [20] => Ctrl('t'),
+        [21] => Ctrl('u'),
+        [22] => Ctrl('v'),
+        [23] => Ctrl('w'),
+        [24] => Ctrl('x'),
+        [25] => Ctrl('y'),
+        [27] => Esc,
+        [32] => Letter(' '),
+        [33] => Letter('!'),
+        [34] => Letter('"'),
+        [35] => Letter('#'),
+        [36] => Letter('$'),
+        [37] => Letter('%'),
+        [38] => Letter('&'),
+        [39] => Letter('\''),
+        [40] => Letter('('),
+        [41] => Letter(')'),
+        [42] => Letter('*'),
+        [43] => Letter('+'),
+        [44] => Letter(','),
+        [45] => Letter('-'),
+        [46] => Letter('.'),
+        [47] => Letter('/'),
+        [48] => Letter('0'),
+        [49] => Letter('1'),
+        [50] => Letter('2'),
+        [51] => Letter('3'),
+        [52] => Letter('4'),
+        [53] => Letter('5'),
+        [54] => Letter('6'),
+        [55] => Letter('7'),
+        [56] => Letter('8'),
+        [57] => Letter('9'),
+        [58] => Letter(':'),
+        [59] => Letter(';'),
+        [60] => Letter('<'),
+        [61] => Letter('='),
+        [62] => Letter('>'),
+        [63] => Letter('?'),
+        [64] => Letter('@'),
+        [65] => Letter('A'),
+        [66] => Letter('B'),
+        [67] => Letter('C'),
+        [68] => Letter('D'),
+        [69] => Letter('E'),
+        [70] => Letter('F'),
+        [71] => Letter('G'),
+        [72] => Letter('H'),
+        [73] => Letter('I'),
+        [74] => Letter('J'),
+        [75] => Letter('K'),
+        [76] => Letter('L'),
+        [77] => Letter('M'),
+        [78] => Letter('N'),
+        [79] => Letter('O'),
+        [80] => Letter('P'),
+        [81] => Letter('Q'),
+        [82] => Letter('R'),
+        [83] => Letter('S'),
+        [84] => Letter('T'),
+        [85] => Letter('U'),
+        [86] => Letter('V'),
+        [87] => Letter('W'),
+        [88] => Letter('X'),
+        [89] => Letter('Y'),
+        [90] => Letter('Z'),
+        [91] => Letter('['),
+        [92] => Letter('\\'),
+        [93] => Letter(']'),
+        [94] => Letter('^'),
+        [95] => Letter('_'),
+        [96] => Letter('`'),
+        [97] => Letter('a'),
+        [98] => Letter('b'),
+        [99] => Letter('c'),
+        [100] => Letter('d'),
+        [101] => Letter('e'),
+        [102] => Letter('f'),
+        [103] => Letter('g'),
+        [104] => Letter('h'),
+        [105] => Letter('i'),
+        [106] => Letter('j'),
+        [107] => Letter('k'),
+        [108] => Letter('l'),
+        [109] => Letter('m'),
+        [110] => Letter('n'),
+        [111] => Letter('o'),
+        [112] => Letter('p'),
+        [113] => Letter('q'),
+        [114] => Letter('r'),
+        [115] => Letter('s'),
+        [116] => Letter('t'),
+        [117] => Letter('u'),
+        [118] => Letter('v'),
+        [119] => Letter('w'),
+        [120] => Letter('x'),
+        [121] => Letter('y'),
+        [122] => Letter('z'),
+        [123] => Letter('{'),
+        [124] => Letter('|'),
+        [125] => Letter('}'),
+        [126] => Letter('~'),
+        [127] => Delete,
+        [27, 91, 65] => Arrow("up"),
+        [27, 91, 66] => Arrow("down"),
+        [27, 91, 67] => Arrow("right"),
+        [27, 91, 68] => Arrow("left"),
+        _ => {
+            println!("{:?}", val);
+            Unknown
+        }
+    }
+}
+
+pub fn key_fn_name_mapper(key: Key) -> String {
+    match key {
+        Key::Ctrl('a') => "ctrl-a".to_string(),
+        Key::Ctrl('b') => "ctrl-b".to_string(),
+        Key::Ctrl('c') => "ctrl-c".to_string(),
+        Key::Ctrl('d') => "ctrl-d".to_string(),
+        Key::Ctrl('e') => "ctrl-e".to_string(),
+        Key::Ctrl('f') => "ctrl-f".to_string(),
+        Key::Ctrl('g') => "ctrl-g".to_string(),
+        Key::Ctrl('h') => "ctrl-h".to_string(),
+        Key::Ctrl('i') => "ctrl-i".to_string(),
+        Key::Ctrl('j') => "ctrl-j".to_string(),
+        Key::Ctrl('k') => "ctrl-k".to_string(),
+        Key::Ctrl('l') => "ctrl-l".to_string(),
+        Key::Ctrl('m') => "ctrl-m".to_string(),
+        Key::Ctrl('n') => "ctrl-n".to_string(),
+        Key::Ctrl('o') => "ctrl-o".to_string(),
+        Key::Ctrl('p') => "ctrl-p".to_string(),
+        Key::Ctrl('q') => "ctrl-q".to_string(),
+        Key::Ctrl('r') => "ctrl-r".to_string(),
+        Key::Ctrl('s') => "ctrl-s".to_string(),
+        Key::Ctrl('t') => "ctrl-t".to_string(),
+        Key::Ctrl('u') => "ctrl-u".to_string(),
+        Key::Ctrl('v') => "ctrl-v".to_string(),
+        Key::Ctrl('w') => "ctrl-w".to_string(),
+        Key::Ctrl('x') => "ctrl-x".to_string(),
+        Key::Ctrl('y') => "ctrl-y".to_string(),
+        Key::Ctrl('z') => "ctrl-z".to_string(),
+        _ => "".to_string(),
+    }
 }
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 pub fn key_activity_mapper(key: Key) {
     unsafe {
-        with_buffer(|buffer| match key {
+        super::with_buffer(|buffer| match key {
             Key::Arrow("left") => buffer.handle_left(),
             Key::Arrow("right") => buffer.handle_right(),
             Key::Backspace => buffer.delete(),
@@ -118,7 +279,7 @@ pub fn key_activity_mapper(key: Key) {
 #[cfg(target_os = "windows")]
 pub fn key_activity_mapper(key: Key) {
     unsafe {
-        with_buffer(|buffer| match key {
+        super::with_buffer(|buffer| match key {
             Key::Arrow("left") => buffer.handle_left(),
             Key::Arrow("right") => buffer.handle_right(),
             Key::Backspace => buffer.delete(),
@@ -221,95 +382,4 @@ pub fn key_activity_mapper(key: Key) {
             _ => buffer.pass(key),
         });
     }
-}
-
-impl Buffer {
-    fn handle_right(&mut self) {
-        if self.pointer < self.size {
-            self.pointer += 1;
-        }
-    }
-
-    fn handle_left(&mut self) {
-        if self.pointer > 0 {
-            self.pointer -= 1;
-        }
-    }
-
-    fn push(&mut self, ch: char) {
-        let mut left_str: String = self.buffer[..self.pointer as usize].to_string();
-        let right_str: String =
-            self.buffer[self.pointer as usize..(self.size) as usize].to_string();
-
-        left_str.push(ch);
-        left_str.push_str(right_str.as_str());
-        self.buffer = left_str;
-        self.pointer += 1;
-        self.size += 1;
-    }
-
-    fn backspace(&mut self) {
-        if self.pointer == 0 {
-            return;
-        }
-        let mut left_str: String = self.buffer[..(self.pointer - 1) as usize].to_string();
-        let right_str: String =
-            self.buffer[self.pointer as usize..(self.size) as usize].to_string();
-
-        left_str.push_str(right_str.as_str());
-        self.buffer = left_str;
-        if self.pointer > 0 {
-            self.size -= 1;
-            self.pointer -= 1;
-        }
-    }
-
-    fn delete(&mut self) {
-        if self.pointer >= self.size {
-            return;
-        }
-        let mut left_str: String = self.buffer[..self.pointer as usize].to_string();
-        let right_str: String =
-            self.buffer[(self.pointer + 1) as usize..(self.size) as usize].to_string();
-
-        left_str.push_str(right_str.as_str());
-        self.buffer = left_str;
-        self.size -= 1;
-    }
-
-    pub const fn new() -> Buffer {
-        Buffer {
-            buffer: String::new(),
-            pointer: 0,
-            size: 0,
-        }
-    }
-
-    fn get_buffer(&mut self) -> String {
-        self.buffer.clone()
-    }
-
-    fn pass(&mut self, key: Key) {
-        buffer::handle_and_call(key);
-    }
-}
-
-static mut BUFFER: Buffer = Buffer::new();
-
-// Helper function to safely access the mutable static using raw pointers
-#[inline]
-unsafe fn with_buffer<F, R>(f: F) -> R
-where
-    F: FnOnce(&mut Buffer) -> R,
-{
-    let buffer_ptr: *mut Buffer = core::ptr::addr_of_mut!(BUFFER);
-    unsafe { f(&mut *buffer_ptr) }
-}
-
-pub fn map_activity(key: Key) {
-    key_activity_mapper(key);
-}
-
-pub fn get_buffer() -> String {
-    unsafe { with_buffer(|buffer| buffer.get_buffer()) }
 }
