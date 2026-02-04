@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Write};
+use std::process::Command;
 use std::sync::Mutex;
 
 lazy_static::lazy_static! {
@@ -20,14 +21,23 @@ lazy_static::lazy_static! {
 pub fn read_tty() -> String {
     let mut reader = READER.lock().unwrap();
     let mut input = String::new();
-    match reader.read_line(&mut input)
-    {
-        Ok(_) => return input.trim().to_string(),
-        Err(_) => return "Internal Error".to_string()
+    match reader.read_line(&mut input) {
+        Ok(_) => input.trim().to_string(),
+        Err(_) => "Internal Error".to_string(),
     }
 }
 
 pub fn write_tty(output: &[u8]) -> io::Result<()> {
     let mut writer = WRITER.lock().unwrap();
     writer.write_all(output)
+}
+
+pub fn execute(cmd: &str) {
+    let raw_output = Command::new(cmd).output();
+
+    let output = raw_output.unwrap();
+
+    if output.status.success() {
+        println!("{}", String::from_utf8_lossy(&output.stdout));
+    }
 }

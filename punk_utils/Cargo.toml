@@ -1,0 +1,10 @@
+[package]
+name = "punk_utils"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+lazy_static = { workspace = true }
+serde = { workspace = true }
+serde_yaml = { workspace = true }

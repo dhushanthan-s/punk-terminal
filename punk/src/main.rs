@@ -1,28 +1,14 @@
-extern crate serde;
-extern crate serde_yaml;
-extern crate libc;
-
-mod terminal;
-mod keyboard;
-mod configurer;
 mod base;
-mod enums;
 
-use terminal::tty::*;
-use keyboard::buffer::*;
-use keyboard::manager::*;
-use std::io;
-use std::io::*;
-use enums::key_mapper;
-use enums::Key;
-
+use punk_terminal::tty::*;
+use punk_utils::input::Key;
+use punk_utils::input::*;
 
 fn main() {
-    terminal::executor::execute("pwd");
+    execute("pwd");
     base::init();
-    loop
-    {
-        let key:Key = watch();
+    loop {
+        let key: Key = watch();
         map_activity(key);
         let _ = write_tty(get_buffer().as_bytes());
     }

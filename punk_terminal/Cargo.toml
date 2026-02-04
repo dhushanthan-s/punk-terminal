@@ -1,0 +1,10 @@
+[package]
+name = "punk_terminal"
+authors = ["Dhushanthan S", "Suganth R"]
+version = "0.1.0"
+repository = "https://github.com/dhushanthan-s/punk-terminal"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+lazy_static = { workspace = true }
