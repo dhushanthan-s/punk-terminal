@@ -10,6 +10,7 @@ pub enum Key<'a> {
     Letter(char),
     Ctrl(char),
     Arrow(&'a str),
+    Enter,
     Backspace,
     Tab,
     Esc,
@@ -89,6 +90,12 @@ impl Buffer {
         self.buffer.clone()
     }
 
+    fn clear(&mut self) {
+        self.buffer.clear();
+        self.pointer = 0;
+        self.size = 0;
+    }
+
     fn pass(&mut self, key: Key) {
         keybinder::handle_and_call(key);
     }
@@ -118,6 +125,10 @@ pub fn map_activity(key: Key) {
 
 pub fn get_buffer() -> String {
     unsafe { with_buffer(|buffer| buffer.get_buffer()) }
+}
+
+pub fn clear_buffer() {
+    unsafe { with_buffer(|buffer| buffer.clear()) }
 }
 
 static mut INPUT: [u8; 5] = [0; 5];

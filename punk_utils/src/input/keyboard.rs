@@ -13,9 +13,10 @@ pub fn matcher(val: &[u8]) -> Key<'_> {
         [7] => Ctrl('h'),
         [8] => Backspace,
         [9] => Tab,
+        [10] => Enter,
         [11] => Ctrl('k'),
         [12] => Ctrl('l'),
-        [13] => Ctrl('m'),
+        [13] => Enter,
         [14] => Ctrl('n'),
         [15] => Ctrl('o'),
         [16] => Ctrl('p'),
@@ -176,6 +177,7 @@ pub fn key_activity_mapper(key: Key) {
             Key::Arrow("right") => buffer.handle_right(),
             Key::Backspace => buffer.delete(),
             Key::Delete => buffer.backspace(),
+            Key::Enter => {}
             Key::Letter(' ') => buffer.push(' '),
             Key::Letter('!') => buffer.push('!'),
             Key::Letter('"') => buffer.push('"'),
@@ -284,6 +286,7 @@ pub fn key_activity_mapper(key: Key) {
             Key::Arrow("right") => buffer.handle_right(),
             Key::Backspace => buffer.delete(),
             Key::Delete => buffer.backspace(),
+            Key::Enter => {}
             Key::Letter(' ') => buffer.push(' '),
             Key::Letter('!') => buffer.push('!'),
             Key::Letter('"') => buffer.push('"'),
