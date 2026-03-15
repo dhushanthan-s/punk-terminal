@@ -35,6 +35,7 @@ fn csi_modifier_to_modifiers(pm: u8) -> Modifiers {
         alt: bits & 2 != 0,
         ctrl: bits & 4 != 0,
         super_: bits & 8 != 0,
+/// Map CSI modifier parameter (Pm) to Modifiers. xterm-style: 1=Shift, 2=Alt, 3=Alt+Shift, 4=Ctrl, 5=Ctrl+Shift, 6=Alt+Ctrl, 7=all, 8=Super.
     }
 }
 
