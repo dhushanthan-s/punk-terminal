@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["punk", "punk_terminal", "punk_utils"]
+members = ["punk", "punk_gui", "punk_terminal", "punk_utils"]
 
 [workspace.package]
 edition = "2024"
@@ -10,3 +10,19 @@ rust-version = "1.85.0"
 lazy_static = "1.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.8"
+winit = "0.30"
+wgpu = "23"
+pollster = "0.3"
+bytemuck = { version = "1.14", features = ["derive"] }
+fontdue = "0.9"
+vte = "0.15"
+libc = "0.2"
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Console",
+    "Win32_System_IO",
+    "Win32_System_Pipes",
+    "Win32_System_Threading",
+] }
