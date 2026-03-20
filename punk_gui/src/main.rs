@@ -263,7 +263,7 @@ fn terminal_key_bytes(key: &KeyEvent, mods: ModifiersState) -> Option<Vec<u8>> {
 
 fn ctrl_byte(c: char) -> Option<u8> {
     let lower = c.to_ascii_lowercase();
-    if ('a'..='z').contains(&lower) {
+    if lower.is_ascii_lowercase() {
         Some(lower as u8 - b'a' + 1)
     } else {
         None

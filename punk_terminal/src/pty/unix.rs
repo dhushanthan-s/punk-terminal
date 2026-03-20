@@ -92,7 +92,7 @@ impl PtySession {
                 if slave < 0 {
                     libc::_exit(127);
                 }
-                if libc::ioctl(slave, libc::TIOCSCTTY, 0 as *mut libc::c_void) != 0 {
+                if libc::ioctl(slave, libc::TIOCSCTTY, std::ptr::null_mut::<libc::c_void>()) != 0 {
                     libc::close(slave);
                     libc::_exit(126);
                 }

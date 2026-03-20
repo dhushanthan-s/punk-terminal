@@ -369,7 +369,7 @@ impl Perform for TerminalGrid {
             0x07 => {}
             0x08 | 0x7f => self.backspace(),
             0x09 => self.tab(),
-            0x0a | 0x0b | 0x0c => self.linefeed(),
+            0x0a..=0x0c => self.linefeed(),
             0x0d => self.carriage_return(),
             _ => {}
         }
