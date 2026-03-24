@@ -1,4 +1,4 @@
-name: CI
+name: Rust Code Format
 
 on: [ push, pull_request ]
 
