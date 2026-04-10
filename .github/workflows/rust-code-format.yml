@@ -35,3 +35,6 @@ jobs:
       - name: Run clippy with naming convention checks
         run: |
           cargo clippy --all-targets
+
+      - name: Run tests
+        run: cargo test --workspace

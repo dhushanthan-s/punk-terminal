@@ -1,5 +1,6 @@
 mod render;
 
+use std::env;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -14,7 +15,39 @@ use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::keyboard::{KeyCode, ModifiersState, NamedKey, PhysicalKey};
 use winit::window::{Window, WindowId};
 
+const SESSION_MARKER_KEY: &str = "PUNK_SESSION";
+const SESSION_MARKER_VALUE: &str = "1";
+
 fn main() -> Result<(), String> {
+    let args: Vec<String> = env::args().skip(1).collect();
+    let inside_punk_session = env::var(SESSION_MARKER_KEY)
+        .map(|v| v == SESSION_MARKER_VALUE)
+        .unwrap_or(false);
+
+    match parse_command_mode(&args, inside_punk_session) {
+        CommandMode::LaunchGui => {}
+        CommandMode::Help => {
+            print_help();
+            return Ok(());
+        }
+        CommandMode::Version => {
+            println!("{}", env!("CARGO_PKG_VERSION"));
+            return Ok(());
+        }
+        CommandMode::InsideSession(args) => {
+            run_inside_session_command(&args)?;
+            return Ok(());
+        }
+        CommandMode::DeniedOutside(args) => {
+            eprintln!(
+                "The `punk {}` command is only available inside a punk-terminal session.",
+                args.join(" ")
+            );
+            eprintln!("Run `punk` to launch punk-terminal.");
+            return Err("outside-session command denied".to_string());
+        }
+    }
+
     let mut elb = EventLoop::<Vec<u8>>::with_user_event();
     let event_loop = elb.build().map_err(|e| format!("event loop: {e}"))?;
     let proxy = event_loop.create_proxy();
@@ -34,6 +67,59 @@ fn main() -> Result<(), String> {
     event_loop
         .run_app(&mut app)
         .map_err(|e| format!("run_app: {e}"))
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum CommandMode {
+    LaunchGui,
+    Help,
+    Version,
+    InsideSession(Vec<String>),
+    DeniedOutside(Vec<String>),
+}
+
+fn parse_command_mode(args: &[String], inside_punk_session: bool) -> CommandMode {
+    if args.is_empty() {
+        return CommandMode::LaunchGui;
+    }
+
+    if args.len() == 1 {
+        match args[0].as_str() {
+            "--help" | "-h" => return CommandMode::Help,
+            "--version" | "-V" => return CommandMode::Version,
+            _ => {}
+        }
+    }
+
+    if inside_punk_session {
+        CommandMode::InsideSession(args.to_vec())
+    } else {
+        CommandMode::DeniedOutside(args.to_vec())
+    }
+}
+
+fn print_help() {
+    println!(
+        "\
+punk - launch Punk Terminal
+
+USAGE:
+    punk
+    punk --help
+    punk --version
+
+NOTES:
+    - Running `punk` launches the Punk Terminal GUI.
+    - Non-launch command functionality is available only inside Punk Terminal sessions.
+"
+    );
+}
+
+fn run_inside_session_command(args: &[String]) -> Result<(), String> {
+    // Placeholder entrypoint for inside-session command functionality.
+    // The command gate allows this path only when PUNK_SESSION=1.
+    eprintln!("inside-session command mode: {}", args.join(" "));
+    Ok(())
 }
 
 struct App {
@@ -314,4 +400,46 @@ fn ctrl_from_code(code: KeyCode) -> Option<Vec<u8>> {
         _ => return None,
     };
     Some(vec![b])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CommandMode, parse_command_mode};
+
+    fn v(items: &[&str]) -> Vec<String> {
+        items.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn launch_mode_when_no_args() {
+        assert_eq!(parse_command_mode(&v(&[]), false), CommandMode::LaunchGui);
+    }
+
+    #[test]
+    fn help_and_version_allowed_outside() {
+        assert_eq!(
+            parse_command_mode(&v(&["--help"]), false),
+            CommandMode::Help
+        );
+        assert_eq!(
+            parse_command_mode(&v(&["--version"]), false),
+            CommandMode::Version
+        );
+    }
+
+    #[test]
+    fn outside_denies_other_commands() {
+        assert_eq!(
+            parse_command_mode(&v(&["status"]), false),
+            CommandMode::DeniedOutside(v(&["status"]))
+        );
+    }
+
+    #[test]
+    fn inside_allows_other_commands() {
+        assert_eq!(
+            parse_command_mode(&v(&["status"]), true),
+            CommandMode::InsideSession(v(&["status"]))
+        );
+    }
 }
