@@ -1244,6 +1244,7 @@ dependencies = [
  "fontdue",
  "pollster",
  "punk_terminal",
+ "punk_utils",
  "vte",
  "wgpu",
  "winit",

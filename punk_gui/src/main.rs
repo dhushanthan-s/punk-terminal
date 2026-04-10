@@ -5,6 +5,7 @@ use std::thread;
 use std::time::Duration;
 
 use punk_terminal::{PtySession, TerminalGrid};
+use punk_utils::config::load_gui_config;
 use render::TerminalRenderer;
 use vte::Parser;
 use winit::application::ApplicationHandler;
@@ -17,6 +18,7 @@ fn main() -> Result<(), String> {
     let mut elb = EventLoop::<Vec<u8>>::with_user_event();
     let event_loop = elb.build().map_err(|e| format!("event loop: {e}"))?;
     let proxy = event_loop.create_proxy();
+    let gui_cfg = load_gui_config();
     let mut app = App {
         proxy,
         window_id: None,
@@ -26,6 +28,8 @@ fn main() -> Result<(), String> {
         parser: Parser::new(),
         pty: None,
         mods: ModifiersState::default(),
+        gui_font_family: gui_cfg.font_family,
+        gui_font_size: gui_cfg.font_size,
     };
     event_loop
         .run_app(&mut app)
@@ -41,6 +45,8 @@ struct App {
     parser: Parser,
     pty: Option<Arc<Mutex<PtySession>>>,
     mods: ModifiersState,
+    gui_font_family: String,
+    gui_font_size: f32,
 }
 
 impl App {
@@ -134,7 +140,11 @@ impl ApplicationHandler<Vec<u8>> for App {
             }
         };
         self.window_id = Some(win.id());
-        let mut renderer = match TerminalRenderer::new(Arc::clone(&win)) {
+        let mut renderer = match TerminalRenderer::new(
+            Arc::clone(&win),
+            &self.gui_font_family,
+            self.gui_font_size,
+        ) {
             Ok(r) => r,
             Err(e) => {
                 eprintln!("gpu: {e}");

@@ -1,6 +1,8 @@
 //! wgpu + font atlas rendering for [`punk_terminal::TerminalGrid`].
 
 use std::collections::HashMap;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use bytemuck::{Pod, Zeroable};
@@ -10,7 +12,8 @@ use wgpu::util::DeviceExt;
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 
-const FONT_PX: f32 = 14.0;
+const DEFAULT_FONT_PX: f32 = 14.0;
+const DEFAULT_FONT_FAMILY: &str = "JetBrainsMonoNerdFont-Regular";
 const FALLBACK_CHAR: char = '?';
 
 #[repr(C)]
@@ -51,7 +54,7 @@ struct AtlasGlyph {
 }
 
 impl TerminalRenderer {
-    pub fn new(window: Arc<Window>) -> Result<Self, String> {
+    pub fn new(window: Arc<Window>, font_family: &str, font_px: f32) -> Result<Self, String> {
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
@@ -93,17 +96,16 @@ impl TerminalRenderer {
         config.format = format;
         surface.configure(&device, &config);
 
-        const FONT: &[u8] = include_bytes!("../fonts/JetBrainsMono-Regular.ttf");
-        let font = Font::from_bytes(FONT, fontdue::FontSettings::default())
-            .map_err(|_| "bad font bytes".to_string())?;
+        let chosen_px = sanitize_font_size(font_px);
+        let font = load_font(font_family)?;
         let line = font
-            .horizontal_line_metrics(FONT_PX)
+            .horizontal_line_metrics(chosen_px)
             .ok_or_else(|| "no line metrics".to_string())?;
-        let (cell_w_px, cell_h_px) = terminal_cell_pixel_size(&font, FONT_PX, line.new_line_size);
+        let (cell_w_px, cell_h_px) = terminal_cell_pixel_size(&font, chosen_px, line.new_line_size);
         let baseline_px = line.ascent.ceil();
 
         let (atlas_tex, atlas_view, glyphs, fallback_glyph, _atlas_size_px) =
-            build_atlas(&device, &queue, &font, FONT_PX)?;
+            build_atlas(&device, &queue, &font, chosen_px)?;
 
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             mag_filter: wgpu::FilterMode::Nearest,
@@ -356,6 +358,50 @@ impl TerminalRenderer {
         frame.present();
         Ok(())
     }
+}
+
+fn sanitize_font_size(size: f32) -> f32 {
+    if size.is_finite() && size > 0.0 {
+        size.clamp(6.0, 128.0)
+    } else {
+        DEFAULT_FONT_PX
+    }
+}
+
+fn resolve_font_file(font_family: &str) -> Option<PathBuf> {
+    let trimmed = font_family.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let direct_path = Path::new(trimmed);
+    if direct_path.is_file() {
+        return Some(direct_path.to_path_buf());
+    }
+
+    let bundled = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("fonts")
+        .join(format!("{trimmed}.ttf"));
+    if bundled.is_file() {
+        return Some(bundled);
+    }
+
+    None
+}
+
+fn load_font(font_family: &str) -> Result<Font, String> {
+    if let Some(path) = resolve_font_file(font_family) {
+        if let Ok(bytes) = fs::read(&path) {
+            if let Ok(font) = Font::from_bytes(bytes, fontdue::FontSettings::default()) {
+                return Ok(font);
+            }
+        }
+    }
+
+    // Final fallback: bundled JetBrains Mono.
+    const EMBEDDED_FONT: &[u8] = include_bytes!("../fonts/JetBrainsMonoNerdFont-Regular.ttf");
+    Font::from_bytes(EMBEDDED_FONT, fontdue::FontSettings::default())
+        .map_err(|_| format!("failed to load fallback font ({}).", DEFAULT_FONT_FAMILY))
 }
 
 /// One terminal cell in pixels: at least the glyph box and advance, so column count stays sane.

@@ -9,6 +9,7 @@ bytemuck = { workspace = true }
 fontdue = { workspace = true }
 pollster = { workspace = true }
 punk_terminal = { path = "../punk_terminal" }
+punk_utils = { path = "../punk_utils" }
 vte = { workspace = true }
 wgpu = { workspace = true }
 winit = { workspace = true }
