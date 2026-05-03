@@ -1,3 +1,7 @@
+# Project formatting policy:
+# - All Rust code must be formatted with rustfmt using this file.
+# - Keep formatting deterministic to reduce noisy diffs.
+
 edition = "2024"
 style_edition = "2024"
 
@@ -72,6 +76,9 @@ force_explicit_abi = true
 # required_version = "1.8.0"
 # unstable_features = false
 disable_all_formatting = false
+error_on_line_overflow = true
+error_on_unformatted = true
+required_version = "1.8.0"
 # skip_children = false
 # show_parse_errors = true
 # error_on_line_overflow = false

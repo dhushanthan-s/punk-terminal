@@ -1,4 +1,4 @@
-use crate::input::Key;
+use crate::input::KeyEvent;
 use crate::input::keyboard;
 use crate::input::watch;
 use serde_yaml::{Mapping, Value};
@@ -14,11 +14,11 @@ lazy_static::lazy_static! {
 
 pub fn add_or_update_binding() {
     check_if_init();
-    println!("press ctrl + key to initialize key binding operation");
-    let mut captured_key_name: String = "".to_string();
+    println!("Press key combination to bind (e.g. ctrl+shift+d)");
+    let mut captured_key_name: String = String::new();
     while captured_key_name.is_empty() {
-        let captured_key: Key = watch();
-        captured_key_name = keyboard::key_fn_name_mapper(captured_key);
+        let key_event: KeyEvent = watch();
+        captured_key_name = keyboard::key_fn_name_mapper(key_event);
     }
     println!("Captured {:?}", captured_key_name);
     print!("Action to perform : ");
@@ -34,17 +34,26 @@ pub fn add_or_update_binding() {
     println!("Captured {} and mapped with {}", captured_key_name, action);
 }
 
-pub fn handle_and_call(key: Key) {
-    check_if_init();
-    let key_name: String = keyboard::key_fn_name_mapper(key.clone());
-    let func_to_call;
+/// Look up action for keybind string. Tries canonical form (ctrl+c) then legacy (ctrl-c).
+fn lookup_action(key_name: &str) -> Option<String> {
+    let map = FUNCTION_MAP.lock().unwrap();
+    map.get(key_name).cloned().or_else(|| {
+        let legacy: String = key_name.replace('+', "-");
+        map.get(&legacy).cloned()
+    })
+}
 
-    if let Some(func) = FUNCTION_MAP.lock().unwrap().get(&key_name) {
-        func_to_call = function_name_mapper(func.to_string());
+pub fn handle_and_call(key_event: KeyEvent) {
+    check_if_init();
+    let key_name: String = keyboard::key_fn_name_mapper(key_event.clone());
+    let func_to_call = if key_name.is_empty() {
+        pass as fn()
+    } else if let Some(func) = lookup_action(&key_name) {
+        function_name_mapper(func)
     } else {
-        func_to_call = pass as fn();
-        println!("Function not found for enum value {:?}", key);
-    }
+        println!("Function not found for key {:?}", key_name);
+        pass as fn()
+    };
     func_to_call();
 }
 
@@ -128,6 +137,4 @@ fn exit() {
     std::process::exit(0);
 }
 
-fn pass() {
-    unimplemented!();
-}
+fn pass() {}
