@@ -34,11 +34,27 @@ impl PtySession {
 
         let mut pts_buf = [0u8; 512];
         let ok = unsafe {
-            libc::ptsname_r(
-                master_fd,
-                pts_buf.as_mut_ptr() as *mut libc::c_char,
-                pts_buf.len(),
-            )
+            // macOS has ptsname() but not ptsname_r(); copy the result out immediately.
+            #[cfg(target_os = "macos")]
+            {
+                let ptr = libc::ptsname(master_fd);
+                if ptr.is_null() {
+                    -1i32
+                } else {
+                    let src = std::ffi::CStr::from_ptr(ptr).to_bytes_with_nul();
+                    let n = src.len().min(pts_buf.len());
+                    pts_buf[..n].copy_from_slice(&src[..n]);
+                    0i32
+                }
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                libc::ptsname_r(
+                    master_fd,
+                    pts_buf.as_mut_ptr() as *mut libc::c_char,
+                    pts_buf.len(),
+                )
+            }
         };
         if ok != 0 {
             unsafe {
@@ -58,6 +74,11 @@ impl PtySession {
             ws_xpixel: 0,
             ws_ypixel: 0,
         };
+        // On Linux we can set the window size on the master before fork.
+        // On macOS the tty struct is not fully ready until the slave is opened,
+        // so TIOCSWINSZ on the master fails with ENOTTY. We set it in the child
+        // on the slave fd instead (see below).
+        #[cfg(not(target_os = "macos"))]
         if unsafe { libc::ioctl(master_fd, libc::TIOCSWINSZ, &ws) } != 0 {
             let e = io::Error::last_os_error();
             unsafe {
@@ -88,11 +109,27 @@ impl PtySession {
             unsafe {
                 libc::close(master_fd);
                 libc::setsid();
-                let slave = libc::open(slave_c.as_ptr(), libc::O_RDWR | libc::O_NOCTTY);
+                // On macOS/BSD, opening the slave without O_NOCTTY after setsid()
+                // automatically sets the controlling terminal. No TIOCSCTTY needed.
+                // On Linux we open with O_NOCTTY and then set it explicitly below.
+                #[cfg(target_os = "macos")]
+                let open_flags = libc::O_RDWR;
+                #[cfg(not(target_os = "macos"))]
+                let open_flags = libc::O_RDWR | libc::O_NOCTTY;
+                let slave = libc::open(slave_c.as_ptr(), open_flags);
                 if slave < 0 {
                     libc::_exit(127);
                 }
-                if libc::ioctl(slave, libc::TIOCSCTTY, std::ptr::null_mut::<libc::c_void>()) != 0 {
+                // Set window size on the slave fd. On macOS this is the only reliable
+                // place to do it (master is not ready before the slave is opened).
+                let _ = libc::ioctl(slave, libc::TIOCSWINSZ, &ws);
+                #[cfg(not(target_os = "macos"))]
+                if libc::ioctl(
+                    slave,
+                    libc::TIOCSCTTY as libc::c_ulong,
+                    std::ptr::null_mut::<libc::c_void>(),
+                ) != 0
+                {
                     libc::close(slave);
                     libc::_exit(126);
                 }
@@ -105,6 +142,9 @@ impl PtySession {
                 let term_k = CString::new("TERM").unwrap();
                 let term_v = CString::new("xterm-256color").unwrap();
                 libc::setenv(term_k.as_ptr(), term_v.as_ptr(), 1);
+                let punk_session_k = CString::new("PUNK_SESSION").unwrap();
+                let punk_session_v = CString::new("1").unwrap();
+                libc::setenv(punk_session_k.as_ptr(), punk_session_v.as_ptr(), 1);
                 let argv: [*const libc::c_char; 3] =
                     [shell_c.as_ptr(), dash_i.as_ptr(), std::ptr::null()];
                 libc::execvp(shell_c.as_ptr(), argv.as_ptr());
