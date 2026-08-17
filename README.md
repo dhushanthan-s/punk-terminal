@@ -14,12 +14,6 @@ curl --proto '=https' --tlsv1.2 -LsSf https://github.com/dhushanthan-s/punk-term
 
 This downloads the right build for your machine and puts `punk` on your PATH.
 
-### Quick install (Windows, PowerShell)
-
-```powershell
-powershell -ExecutionPolicy Bypass -c "irm https://github.com/dhushanthan-s/punk-terminal/releases/latest/download/punk_gui-installer.ps1 | iex"
-```
-
 ### Prebuilt archives (GitHub Releases)
 
 Download an archive for your platform from [GitHub Releases](https://github.com/dhushanthan-s/punk-terminal/releases/latest).
@@ -30,13 +24,12 @@ Available targets:
 - `aarch64-unknown-linux-gnu`
 - `x86_64-apple-darwin`
 - `aarch64-apple-darwin`
-- `x86_64-pc-windows-msvc`
 
-Extract and copy `punk` to a directory on your PATH (Windows archives are `.zip`):
+Extract and copy `punk` to a directory on your PATH:
 
 ```sh
 tar -xf punk_gui-<target>.tar.xz
-sudo install -m 0755 punk /usr/local/bin/punk
+sudo install -m 0755 punk_gui-<target>/punk /usr/local/bin/punk
 ```
 
 On macOS, if you download the archive with a browser, Gatekeeper may block it. Remove the quarantine flag once:
@@ -124,7 +117,7 @@ cargo fmt --all
 
 ### Cutting a release
 
-Releases are produced by [cargo-dist](https://axodotdev.github.io/cargo-dist/). Tagging a version builds all targets and publishes a GitHub Release with archives, checksums, and `curl`/PowerShell installers.
+Releases are produced by [cargo-dist](https://axodotdev.github.io/cargo-dist/). Tagging a version builds all Linux and macOS targets and publishes a GitHub Release with archives, checksums, and the `curl` installer.
 
 ```sh
 git tag v0.1.0
