@@ -72,25 +72,26 @@ fn key_binder_init() {
     let default_binding_map: HashMap<String, String> =
         serde_yaml::from_reader(default_reader).unwrap();
 
-    let user_file_path: String = super::path_to_user_conf("user_keybinding.yml".to_string());
-    let user_file = File::open(user_file_path.as_str());
-    match user_file {
-        Ok(user_file) => {
-            let user_reader = BufReader::new(user_file);
-            let user_binding_map: HashMap<String, String> =
-                serde_yaml::from_reader::<_, HashMap<String, String>>(user_reader).unwrap();
+    if let Some(user_file_path) = super::path_to_user_conf("user_keybinding.yml".to_string()) {
+        let user_file = File::open(user_file_path.as_str());
+        match user_file {
+            Ok(user_file) => {
+                let user_reader = BufReader::new(user_file);
+                let user_binding_map: HashMap<String, String> =
+                    serde_yaml::from_reader::<_, HashMap<String, String>>(user_reader).unwrap();
 
-            for (key, value) in &user_binding_map {
-                FUNCTION_MAP
-                    .lock()
-                    .unwrap()
-                    .insert(key.to_string(), value.to_string());
+                for (key, value) in &user_binding_map {
+                    FUNCTION_MAP
+                        .lock()
+                        .unwrap()
+                        .insert(key.to_string(), value.to_string());
+                }
+                write_into_yml(user_file_path);
             }
-            write_into_yml(user_file_path);
-        }
 
-        Err(_user_file) => {
-            // Do nothing
+            Err(_user_file) => {
+                // Do nothing
+            }
         }
     }
 

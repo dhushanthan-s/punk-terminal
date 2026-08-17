@@ -5,7 +5,7 @@ use std::fs;
 use std::path::Path;
 
 const DEFAULT_GUI_FONT_FAMILY: &str = "JetBrainsMonoNerdFont-Regular";
-const DEFAULT_GUI_FONT_SIZE: f32 = 14.0;
+const DEFAULT_GUI_FONT_SIZE: f32 = 34.0;
 
 #[derive(Debug, Clone)]
 pub struct GuiConfig {
@@ -35,16 +35,34 @@ pub fn path_of_file(file_name: String) -> String {
     base_path
 }
 
-pub fn path_to_user_conf(file_name: String) -> String {
-    let mut base_path: String = std::env::var("HOME").unwrap();
-    base_path.push_str("/.config/punk/");
-    base_path.push_str(file_name.as_str());
-    base_path
+/// Return the punk config directory.
+///
+/// Order: `XDG_CONFIG_HOME/punk`, then `HOME/.config/punk`. Returns `None` when
+/// neither is set (some sandbox or service contexts), so callers fall back to
+/// defaults instead of panicking.
+fn punk_config_dir() -> Option<String> {
+    if let Ok(xdg) = std::env::var("XDG_CONFIG_HOME") {
+        if !xdg.is_empty() {
+            return Some(format!("{xdg}/punk"));
+        }
+    }
+    let home = std::env::var("HOME").ok()?;
+    if home.is_empty() {
+        return None;
+    }
+    Some(format!("{home}/.config/punk"))
+}
+
+pub fn path_to_user_conf(file_name: String) -> Option<String> {
+    let dir = punk_config_dir()?;
+    Some(format!("{dir}/{file_name}"))
 }
 
 pub fn load_gui_config() -> GuiConfig {
-    let cfg_path = path_to_user_conf("gui.yml".to_string());
-    load_gui_config_from_path(Path::new(&cfg_path))
+    match path_to_user_conf("gui.yml".to_string()) {
+        Some(cfg_path) => load_gui_config_from_path(Path::new(&cfg_path)),
+        None => GuiConfig::default(),
+    }
 }
 
 fn load_gui_config_from_path(path: &Path) -> GuiConfig {
