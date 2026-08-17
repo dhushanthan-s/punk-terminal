@@ -4,22 +4,48 @@ Punk terminal is AI powered rust based terminal with integrated terminal multipl
 
 ## Install
 
-### Prebuilt binaries (macOS + Linux)
+The installable command is `punk` (the GUI terminal). Pick any method below.
 
-Download the latest archive from [GitHub Releases](https://github.com/dhushanthan-s/punk-terminal/releases).
+### Quick install (macOS + Linux)
+
+```sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/dhushanthan-s/punk-terminal/releases/latest/download/punk_gui-installer.sh | sh
+```
+
+This downloads the right build for your machine and puts `punk` on your PATH.
+
+### Quick install (Windows, PowerShell)
+
+```powershell
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/dhushanthan-s/punk-terminal/releases/latest/download/punk_gui-installer.ps1 | iex"
+```
+
+### Prebuilt archives (GitHub Releases)
+
+Download an archive for your platform from [GitHub Releases](https://github.com/dhushanthan-s/punk-terminal/releases/latest).
 
 Available targets:
 
 - `x86_64-unknown-linux-gnu`
+- `aarch64-unknown-linux-gnu`
 - `x86_64-apple-darwin`
 - `aarch64-apple-darwin`
+- `x86_64-pc-windows-msvc`
 
-Install by extracting and copying `punk` to your PATH:
+Extract and copy `punk` to a directory on your PATH (Windows archives are `.zip`):
 
 ```sh
-tar -xzf punk-<version>-<target>.tar.gz
-sudo install -m 0755 punk-<version>-<target>/punk /usr/local/bin/punk
+tar -xf punk_gui-<target>.tar.xz
+sudo install -m 0755 punk /usr/local/bin/punk
 ```
+
+On macOS, if you download the archive with a browser, Gatekeeper may block it. Remove the quarantine flag once:
+
+```sh
+xattr -dr com.apple.quarantine /usr/local/bin/punk
+```
+
+The `curl` and `cargo install` methods do not set this flag, so they are not affected.
 
 ### Install from source (cargo)
 
@@ -34,6 +60,10 @@ From GitHub directly:
 ```sh
 cargo install --git https://github.com/dhushanthan-s/punk-terminal --package punk_gui --bin punk --locked
 ```
+
+### Linux runtime note
+
+`punk` renders with the GPU (**wgpu**). You need a desktop session with working GPU drivers. On minimal Linux installs, install your distro's Vulkan/Mesa (or equivalent) packages if the window fails to open.
 
 ### Command naming policy
 
@@ -91,3 +121,14 @@ To apply formatting:
 ```sh
 cargo fmt --all
 ```
+
+### Cutting a release
+
+Releases are produced by [cargo-dist](https://axodotdev.github.io/cargo-dist/). Tagging a version builds all targets and publishes a GitHub Release with archives, checksums, and `curl`/PowerShell installers.
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+To change targets or installers, edit `[workspace.metadata.dist]` in the root `Cargo.toml`, then run `dist generate` to regenerate `.github/workflows/release.yml`.

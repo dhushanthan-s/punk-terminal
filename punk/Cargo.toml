@@ -10,6 +10,10 @@ autobins = false
 name = "punk-legacy"
 path = "src/main.rs"
 
+# Legacy binary: not part of the distributed release (see punk_gui for the shipped `punk`).
+[package.metadata.dist]
+dist = false
+
 [dependencies]
 libc = "0.2"
 

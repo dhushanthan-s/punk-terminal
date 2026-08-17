@@ -3,11 +3,20 @@ name = "punk_gui"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "AI powered Rust terminal with an integrated multiplexer"
+readme = "../README.md"
 autobins = false
 
 [[bin]]
 name = "punk"
 path = "src/main.rs"
+
+# Only this crate produces a distributable release artifact (the `punk` binary).
+[package.metadata.dist]
+dist = true
 
 [dependencies]
 bytemuck = { workspace = true }
