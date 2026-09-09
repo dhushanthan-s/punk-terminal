@@ -16,6 +16,56 @@ const DEFAULT_FONT_PX: f32 = 14.0;
 const DEFAULT_FONT_FAMILY: &str = "JetBrainsMonoNerdFont-Regular";
 const FALLBACK_CHAR: char = '?';
 
+const ATLAS_W: u32 = 2048;
+const ATLAS_H: u32 = 1024;
+/// Transparent margin kept between packed glyphs so neighbours never bleed in.
+const GUTTER: u32 = 2;
+/// Side of the fully-opaque block reserved at atlas (0, 0) for solid fills.
+const SOLID_PX: u32 = 2;
+/// Stop flushing a full atlas after this many resets, so a pathological working
+/// set degrades to `?` instead of rebuilding the atlas every single frame.
+const MAX_ATLAS_RESETS: u32 = 4;
+/// Cursor blink half-period. Matches xterm's default.
+const BLINK_MS: u128 = 530;
+
+/// Shelf packer for the glyph atlas. The cursor persists across frames so glyphs
+/// can be added lazily as new codepoints appear.
+struct ShelfPacker {
+    x: u32,
+    y: u32,
+    row_h: u32,
+}
+
+impl ShelfPacker {
+    /// Start packing past the reserved solid block so it can never be overwritten.
+    fn reset() -> Self {
+        Self {
+            x: SOLID_PX + GUTTER,
+            y: GUTTER,
+            row_h: 0,
+        }
+    }
+
+    /// Reserve a `w` x `h` rect, returning its top-left corner. `None` when full.
+    fn alloc(&mut self, w: u32, h: u32) -> Option<(u32, u32)> {
+        if w == 0 || h == 0 || w + GUTTER > ATLAS_W || h + GUTTER > ATLAS_H {
+            return None;
+        }
+        if self.x + w + GUTTER > ATLAS_W {
+            self.x = GUTTER;
+            self.y += self.row_h + GUTTER;
+            self.row_h = 0;
+        }
+        if self.y + h + GUTTER > ATLAS_H {
+            return None;
+        }
+        let spot = (self.x, self.y);
+        self.x += w + GUTTER;
+        self.row_h = self.row_h.max(h);
+        Some(spot)
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 struct GpuVertex {
@@ -32,15 +82,24 @@ pub struct TerminalRenderer {
     config: wgpu::SurfaceConfiguration,
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
-    #[allow(dead_code)]
     atlas_texture: wgpu::Texture,
     #[allow(dead_code)]
     sampler: wgpu::Sampler,
     cell_w_px: f32,
     cell_h_px: f32,
     baseline_px: f32,
+    /// Kept alive so glyphs can be rasterized on demand, not just at startup.
+    font: Font,
+    font_px: f32,
+    packer: ShelfPacker,
     atlas_glyphs: HashMap<char, AtlasGlyph>,
     fallback_glyph: AtlasGlyph,
+    /// UV of the reserved opaque texel; a degenerate rect, so it always samples 1.0.
+    solid_uv: [f32; 4],
+    /// A pack failed during the last frame; the atlas is flushed before the next one.
+    atlas_full: bool,
+    atlas_resets: u32,
+    blink_epoch: std::time::Instant,
 }
 
 #[derive(Clone, Copy)]
@@ -104,8 +163,8 @@ impl TerminalRenderer {
         let (cell_w_px, cell_h_px) = terminal_cell_pixel_size(&font, chosen_px, line.new_line_size);
         let baseline_px = line.ascent.ceil();
 
-        let (atlas_tex, atlas_view, glyphs, fallback_glyph, _atlas_size_px) =
-            build_atlas(&device, &queue, &font, chosen_px)?;
+        let atlas_tex = create_atlas_texture(&device);
+        let atlas_view = atlas_tex.create_view(&wgpu::TextureViewDescriptor::default());
 
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             mag_filter: wgpu::FilterMode::Nearest,
@@ -194,7 +253,7 @@ impl TerminalRenderer {
             cache: None,
         });
 
-        Ok(Self {
+        let mut this = Self {
             surface,
             device,
             queue,
@@ -206,9 +265,95 @@ impl TerminalRenderer {
             cell_w_px,
             cell_h_px,
             baseline_px,
-            atlas_glyphs: glyphs,
-            fallback_glyph,
-        })
+            font,
+            font_px: chosen_px,
+            packer: ShelfPacker::reset(),
+            atlas_glyphs: HashMap::new(),
+            fallback_glyph: BLANK_GLYPH,
+            solid_uv: [0.0; 4],
+            atlas_full: false,
+            atlas_resets: 0,
+            blink_epoch: std::time::Instant::now(),
+        };
+        // Fills the atlas, sets `solid_uv`, and replaces the placeholder fallback.
+        this.rebuild_atlas();
+        Ok(this)
+    }
+
+    /// Clear the atlas and re-seed it: solid texel, then printable ASCII as a warm
+    /// cache so the first frame does not stall rasterizing the whole prompt.
+    fn rebuild_atlas(&mut self) {
+        clear_atlas(&self.queue, &self.atlas_texture);
+        self.solid_uv = write_solid_texel(&self.queue, &self.atlas_texture);
+        self.packer = ShelfPacker::reset();
+        self.atlas_glyphs.clear();
+        self.fallback_glyph = BLANK_GLYPH;
+
+        for code in 32u8..=126u8 {
+            self.ensure_glyph(code as char);
+        }
+        self.fallback_glyph = self
+            .atlas_glyphs
+            .get(&FALLBACK_CHAR)
+            .copied()
+            .or_else(|| self.atlas_glyphs.get(&' ').copied())
+            .unwrap_or(BLANK_GLYPH);
+    }
+
+    /// Rasterize, pack and upload `ch`, caching the result. Never fails: when the
+    /// atlas is full the fallback glyph is returned and a flush is queued for the
+    /// next frame.
+    fn ensure_glyph(&mut self, ch: char) -> AtlasGlyph {
+        // A codepoint the face lacks would rasterize as .notdef. Cache the fallback
+        // under it so we do not re-probe the same char on every frame.
+        if !self.font.has_glyph(ch) {
+            let g = self.fallback_glyph;
+            self.atlas_glyphs.insert(ch, g);
+            return g;
+        }
+
+        let (metrics, bitmap) =
+            rasterize_fitted(&self.font, ch, self.font_px, self.cell_w_px, self.cell_h_px);
+        let bw = metrics.width as u32;
+        let bh = metrics.height as u32;
+
+        let uv = if bw > 0 && bh > 0 {
+            // Three disjoint field borrows: `&self.queue`, `&self.atlas_texture` and
+            // `&mut self.packer`. This only compiles because `alloc` is a method on
+            // ShelfPacker and the upload is a free function - routing either through
+            // a `&mut self` method would borrow all of `self`.
+            match self.packer.alloc(bw, bh) {
+                Some((x, y)) => {
+                    upload_glyph(&self.queue, &self.atlas_texture, x, y, bw, bh, &bitmap);
+                    uv_rect(x, y, bw, bh)
+                }
+                None => {
+                    // Do NOT reset here: UVs already baked into this frame's vertex
+                    // buffer would go stale and the frame would render scrambled.
+                    self.atlas_full = true;
+                    return self.fallback_glyph;
+                }
+            }
+        } else {
+            // Blank glyph (space and friends): no atlas space, never drawn.
+            self.solid_uv
+        };
+
+        let glyph = AtlasGlyph {
+            uv,
+            width: metrics.width as f32,
+            height: metrics.height as f32,
+            xmin: metrics.xmin as f32,
+            ymin: metrics.ymin as f32,
+            advance: metrics.advance_width.max(1.0),
+        };
+        self.atlas_glyphs.insert(ch, glyph);
+        glyph
+    }
+
+    /// Restart the blink phase so the cursor is solid immediately after a keystroke.
+    pub fn reset_cursor_blink(&mut self) {
+        self.blink_epoch = std::time::Instant::now();
     }
 
     pub fn cell_pixel_size(&self) -> (f32, f32) {
@@ -248,6 +393,26 @@ impl TerminalRenderer {
         let origin_x = ((w - content_w) * 0.5).max(0.0).floor();
         let origin_y = ((h - content_h) * 0.5).max(0.0).floor();
 
+        // A pack failed last frame. Flush now, between frames, so no UV baked into a
+        // vertex buffer is invalidated mid-build.
+        if self.atlas_full {
+            self.atlas_full = false;
+            if self.atlas_resets < MAX_ATLAS_RESETS {
+                self.atlas_resets += 1;
+                self.rebuild_atlas();
+                if self.atlas_resets == MAX_ATLAS_RESETS {
+                    eprintln!(
+                        "glyph atlas exhausted repeatedly; uncached characters will render as '{FALLBACK_CHAR}'"
+                    );
+                }
+            }
+        }
+
+        let (cur_col, cur_row) = grid.cursor();
+        let blink_on = (self.blink_epoch.elapsed().as_millis() / BLINK_MS) % 2 == 0;
+        let draw_cursor = grid.cursor_visible() && blink_on;
+        let solid_uv = self.solid_uv;
+
         let mut verts: Vec<GpuVertex> = Vec::with_capacity(cols * rows * 6);
         let mut text_verts: Vec<GpuVertex> = Vec::with_capacity(cols * rows * 6);
         let cells = grid.cells();
@@ -256,13 +421,21 @@ impl TerminalRenderer {
             for col in 0..cols {
                 let cell = &cells[row * cols + col];
                 let c = cell.ch;
-                let glyph = self
-                    .atlas_glyphs
-                    .get(&c)
-                    .copied()
-                    .unwrap_or(self.fallback_glyph);
-                let fg = rgb01(&cell.fg);
-                let bg = rgb01(&cell.bg);
+                // Copy out of the map first: holding the `get` borrow across the
+                // `ensure_glyph` call in the None arm would not compile.
+                let cached = self.atlas_glyphs.get(&c).copied();
+                let glyph = match cached {
+                    Some(g) => g,
+                    None => self.ensure_glyph(c),
+                };
+                // Inverse video paints the block cursor using the geometry that is
+                // already being emitted for this cell - no extra quad, no shader change.
+                let is_cursor = draw_cursor && row == cur_row as usize && col == cur_col as usize;
+                let (fg, bg) = if is_cursor {
+                    (rgb01(&cell.bg), rgb01(&cell.fg))
+                } else {
+                    (rgb01(&cell.fg), rgb01(&cell.bg))
+                };
                 let x0 = origin_x + col as f32 * cw;
                 let y0 = origin_y + row as f32 * ch;
                 let x1 = x0 + cw;
@@ -273,7 +446,7 @@ impl TerminalRenderer {
                 let p01 = ndc(x0, y1);
                 let p11 = ndc(x1, y1);
                 // Background pass: fill cell exactly.
-                quad(&mut verts, p00, p10, p01, p11, glyph.uv, bg, bg);
+                quad(&mut verts, p00, p10, p01, p11, solid_uv, bg, bg);
 
                 if c == ' ' || glyph.width <= 0.0 || glyph.height <= 0.0 {
                     continue;
@@ -379,6 +552,7 @@ fn resolve_font_file(font_family: &str) -> Option<PathBuf> {
         return Some(direct_path.to_path_buf());
     }
 
+    // Dev-only: present under `cargo run`, never in an installed binary.
     let bundled = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("fonts")
         .join(format!("{trimmed}.ttf"));
@@ -386,8 +560,70 @@ fn resolve_font_file(font_family: &str) -> Option<PathBuf> {
         return Some(bundled);
     }
 
+    for dir in system_font_dirs() {
+        if let Some(hit) = find_font_in_dir(&dir, trimmed, 1) {
+            return Some(hit);
+        }
+    }
+
     None
 }
+
+/// Standard per-platform font directories, most specific (user) first.
+fn system_font_dirs() -> Vec<PathBuf> {
+    let mut dirs: Vec<PathBuf> = Vec::new();
+    let home = std::env::var_os("HOME").map(PathBuf::from);
+
+    if cfg!(target_os = "macos") {
+        if let Some(h) = home.as_ref() {
+            dirs.push(h.join("Library/Fonts"));
+        }
+        dirs.push(PathBuf::from("/Library/Fonts"));
+        dirs.push(PathBuf::from("/System/Library/Fonts"));
+    } else if cfg!(target_os = "windows") {
+        if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+            dirs.push(PathBuf::from(local).join("Microsoft/Windows/Fonts"));
+        }
+        if let Some(win) = std::env::var_os("SystemRoot") {
+            dirs.push(PathBuf::from(win).join("Fonts"));
+        }
+    } else {
+        if let Some(h) = home.as_ref() {
+            dirs.push(h.join(".local/share/fonts"));
+            dirs.push(h.join(".fonts"));
+        }
+        dirs.push(PathBuf::from("/usr/local/share/fonts"));
+        dirs.push(PathBuf::from("/usr/share/fonts"));
+    }
+    dirs
+}
+
+/// Look for `{name}.{ttf,otf,ttc}` in `dir`, recursing `depth` more levels.
+/// Linux font dirs nest by foundry, so one level of recursion is needed there.
+fn find_font_in_dir(dir: &Path, name: &str, depth: usize) -> Option<PathBuf> {
+    for ext in ["ttf", "otf", "ttc"] {
+        let candidate = dir.join(format!("{name}.{ext}"));
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+    if depth == 0 {
+        return None;
+    }
+    let entries = fs::read_dir(dir).ok()?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            if let Some(hit) = find_font_in_dir(&path, name, depth - 1) {
+                return Some(hit);
+            }
+        }
+    }
+    None
+}
+
+/// Bundled JetBrains Mono Nerd Font, used when `font_family` cannot be resolved.
+const EMBEDDED_FONT: &[u8] = include_bytes!("../fonts/JetBrainsMonoNerdFont-Regular.ttf");
 
 fn load_font(font_family: &str) -> Result<Font, String> {
     if let Some(path) = resolve_font_file(font_family) {
@@ -398,8 +634,6 @@ fn load_font(font_family: &str) -> Result<Font, String> {
         }
     }
 
-    // Final fallback: bundled JetBrains Mono.
-    const EMBEDDED_FONT: &[u8] = include_bytes!("../fonts/JetBrainsMonoNerdFont-Regular.ttf");
     Font::from_bytes(EMBEDDED_FONT, fontdue::FontSettings::default())
         .map_err(|_| format!("failed to load fallback font ({}).", DEFAULT_FONT_FAMILY))
 }
@@ -500,100 +734,22 @@ fn clip_uv_to_quad(
     [u0 + du * tx0, v0 + dv * ty0, u0 + du * tx1, v0 + dv * ty1]
 }
 
-fn build_atlas(
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-    font: &Font,
-    px: f32,
-) -> Result<
-    (
-        wgpu::Texture,
-        wgpu::TextureView,
-        HashMap<char, AtlasGlyph>,
-        AtlasGlyph,
-        (f32, f32),
-    ),
-    String,
-> {
-    const ATLAS_W: usize = 2048;
-    const ATLAS_H: usize = 1024;
-    let mut pixels = vec![0u8; ATLAS_W * ATLAS_H];
-    let mut glyphs = HashMap::new();
-    let mut x: usize = 2;
-    let mut y: usize = 2;
-    let mut row_h: usize = 0;
+/// A cached entry for a glyph that occupies no atlas space and is never drawn.
+const BLANK_GLYPH: AtlasGlyph = AtlasGlyph {
+    uv: [0.0, 0.0, 0.0, 0.0],
+    width: 0.0,
+    height: 0.0,
+    xmin: 0.0,
+    ymin: 0.0,
+    advance: 1.0,
+};
 
-    for code in 32u8..=126u8 {
-        let ch = code as char;
-        let (metrics, bitmap) = font.rasterize(ch, px);
-        let bw = metrics.width;
-        let bh = metrics.height;
-        let (gw, gh, has_bmp) = if bw > 0 && bh > 0 {
-            (bw, bh, true)
-        } else {
-            let m = font.metrics(ch, px);
-            (
-                m.advance_width.ceil().max(1.0) as usize,
-                m.height.max(1),
-                false,
-            )
-        };
-        if x + gw + 2 > ATLAS_W {
-            x = 2;
-            y += row_h + 2;
-            row_h = 0;
-        }
-        if y + gh + 2 > ATLAS_H {
-            return Err("font atlas full".to_string());
-        }
-        row_h = row_h.max(gh);
-        if has_bmp {
-            for by in 0..bh {
-                for bx in 0..bw {
-                    let a = bitmap[by * bw + bx];
-                    pixels[(y + by) * ATLAS_W + x + bx] = a;
-                }
-            }
-        }
-        let m = font.metrics(ch, px);
-        let inset_u = 0.5 / ATLAS_W as f32;
-        let inset_v = 0.5 / ATLAS_H as f32;
-        let u0 = x as f32 / ATLAS_W as f32 + inset_u;
-        let v0 = y as f32 / ATLAS_H as f32 + inset_v;
-        let u1 = (x + gw) as f32 / ATLAS_W as f32 - inset_u;
-        let v1 = (y + gh) as f32 / ATLAS_H as f32 - inset_v;
-        glyphs.insert(
-            ch,
-            AtlasGlyph {
-                uv: [u0, v0, u1.max(u0), v1.max(v0)],
-                width: m.width as f32,
-                height: m.height as f32,
-                xmin: m.xmin as f32,
-                ymin: m.ymin as f32,
-                advance: m.advance_width.max(1.0),
-            },
-        );
-        x += gw + 2;
-    }
-
-    let fallback_glyph = glyphs
-        .get(&FALLBACK_CHAR)
-        .copied()
-        .or_else(|| glyphs.get(&' ').copied())
-        .unwrap_or(AtlasGlyph {
-            uv: [0.0, 0.0, 0.001, 0.001],
-            width: 0.0,
-            height: 0.0,
-            xmin: 0.0,
-            ymin: 0.0,
-            advance: 1.0,
-        });
-
-    let texture = device.create_texture(&wgpu::TextureDescriptor {
-        label: None,
+fn create_atlas_texture(device: &wgpu::Device) -> wgpu::Texture {
+    device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("glyph atlas"),
         size: wgpu::Extent3d {
-            width: ATLAS_W as u32,
-            height: ATLAS_H as u32,
+            width: ATLAS_W,
+            height: ATLAS_H,
             depth_or_array_layers: 1,
         },
         mip_level_count: 1,
@@ -602,32 +758,270 @@ fn build_atlas(
         format: wgpu::TextureFormat::R8Unorm,
         usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
         view_formats: &[],
-    });
+    })
+}
+
+/// Upload one tightly packed R8 coverage bitmap at `(x, y)`.
+///
+/// `Queue::write_texture` re-stages internally, so unlike `copy_buffer_to_texture`
+/// it imposes no 256-byte `bytes_per_row` alignment. For `R8Unorm` the stride in
+/// bytes equals the width in texels, which is exactly fontdue's bitmap layout.
+fn upload_glyph(
+    queue: &wgpu::Queue,
+    texture: &wgpu::Texture,
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
+    bitmap: &[u8],
+) {
+    if w == 0 || h == 0 || bitmap.len() < (w as usize) * (h as usize) {
+        return;
+    }
     queue.write_texture(
         wgpu::ImageCopyTexture {
-            texture: &texture,
+            texture,
             mip_level: 0,
-            origin: wgpu::Origin3d::ZERO,
+            origin: wgpu::Origin3d { x, y, z: 0 },
             aspect: wgpu::TextureAspect::All,
         },
-        &pixels,
+        bitmap,
         wgpu::ImageDataLayout {
             offset: 0,
-            bytes_per_row: Some(ATLAS_W as u32),
-            rows_per_image: Some(ATLAS_H as u32),
+            bytes_per_row: Some(w),
+            rows_per_image: Some(h),
         },
         wgpu::Extent3d {
-            width: ATLAS_W as u32,
-            height: ATLAS_H as u32,
+            width: w,
+            height: h,
             depth_or_array_layers: 1,
         },
     );
-    let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-    Ok((
-        texture,
-        view,
-        glyphs,
-        fallback_glyph,
-        (ATLAS_W as f32, ATLAS_H as f32),
-    ))
+}
+
+/// Zero the whole atlas in one upload. The staging buffer is dropped straight
+/// after, so no CPU-side mirror of the atlas is kept resident.
+fn clear_atlas(queue: &wgpu::Queue, texture: &wgpu::Texture) {
+    let zeros = vec![0u8; (ATLAS_W as usize) * (ATLAS_H as usize)];
+    upload_glyph(queue, texture, 0, 0, ATLAS_W, ATLAS_H, &zeros);
+}
+
+/// Reserve the opaque block at the atlas origin and return the UV that samples it.
+fn write_solid_texel(queue: &wgpu::Queue, texture: &wgpu::Texture) -> [f32; 4] {
+    let solid = [0xFFu8; (SOLID_PX * SOLID_PX) as usize];
+    upload_glyph(queue, texture, 0, 0, SOLID_PX, SOLID_PX, &solid);
+    // Degenerate rect at the block centre: every vertex samples the same interior
+    // texel, so coverage is exactly 1.0 and `mix(bg, fg, cov)` yields pure fg.
+    let u = (SOLID_PX as f32 * 0.5) / ATLAS_W as f32;
+    let v = (SOLID_PX as f32 * 0.5) / ATLAS_H as f32;
+    [u, v, u, v]
+}
+
+fn uv_rect(x: u32, y: u32, w: u32, h: u32) -> [f32; 4] {
+    let inset_u = 0.5 / ATLAS_W as f32;
+    let inset_v = 0.5 / ATLAS_H as f32;
+    let u0 = x as f32 / ATLAS_W as f32 + inset_u;
+    let v0 = y as f32 / ATLAS_H as f32 + inset_v;
+    let u1 = (x + w) as f32 / ATLAS_W as f32 - inset_u;
+    let v1 = (y + h) as f32 / ATLAS_H as f32 - inset_v;
+    [u0, v0, u1.max(u0), v1.max(v0)]
+}
+
+/// Rasterize `ch` small enough to fit inside one cell.
+///
+/// Nerd Font icons in the non-`Mono` variants routinely have ~2x the advance of a
+/// text glyph. Rather than truncating them at the cell edge, re-rasterize at a
+/// smaller size: fontdue recomputes coverage from the outline, which stays crisp
+/// under the atlas's `Nearest` sampler where a resampled bitmap would not.
+///
+/// The scale is uniform about the baseline origin, so `height`, `ymin`, `xmin` and
+/// `advance` all shrink together and the caller's baseline placement still holds.
+fn rasterize_fitted(
+    font: &Font,
+    ch: char,
+    px: f32,
+    cell_w: f32,
+    cell_h: f32,
+) -> (fontdue::Metrics, Vec<u8>) {
+    let (mut metrics, mut bitmap) = font.rasterize(ch, px);
+    let mut try_px = px;
+
+    // Metrics are not linear in px (hinting, rounding), so converge over a few
+    // passes instead of assuming one correction lands. Bounded by the iteration
+    // count and the 4px floor; `scale` is capped below 1.0 so px strictly shrinks.
+    for _ in 0..3 {
+        let w = metrics.width as f32;
+        let h = metrics.height as f32;
+        if w <= cell_w && h <= cell_h {
+            break;
+        }
+        let scale = (cell_w / w.max(1.0)).min(cell_h / h.max(1.0)).min(0.999);
+        try_px = (try_px * scale).max(4.0);
+        let (m2, b2) = font.rasterize(ch, try_px);
+        metrics = m2;
+        bitmap = b2;
+        if try_px <= 4.0 {
+            break;
+        }
+    }
+    (metrics, bitmap)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn embedded() -> Font {
+        Font::from_bytes(EMBEDDED_FONT, fontdue::FontSettings::default()).expect("bundled font")
+    }
+
+    /// The regression this whole change exists for: these codepoints used to render
+    /// as `?` because the atlas only covered ASCII 32..=126.
+    #[test]
+    fn bundled_font_covers_nerd_and_box_drawing() {
+        let font = embedded();
+        for (ch, what) in [
+            ('\u{e0b0}', "powerline separator"),
+            ('\u{e0b2}', "powerline separator (reverse)"),
+            ('\u{f015}', "nerd home icon"),
+            ('\u{f07b}', "nerd folder icon"),
+            ('\u{2500}', "box drawing"),
+            ('\u{2588}', "full block"),
+        ] {
+            assert!(
+                font.has_glyph(ch),
+                "bundled font is missing {what} U+{:04X}",
+                ch as u32
+            );
+        }
+    }
+
+    /// Known gap, asserted so it is recorded rather than assumed working: the
+    /// bundled JetBrains Mono Nerd Font has no Braille block at all, so spinners
+    /// and `btop`-style meters still fall back to `?`. Closing this needs a real
+    /// multi-face fallback chain, which the renderer does not have - it loads
+    /// exactly one `Font`. Flip this test when that lands.
+    #[test]
+    fn bundled_font_has_no_braille() {
+        let font = embedded();
+        assert!(!font.has_glyph('\u{2800}'));
+        assert!(!font.has_glyph('\u{28ff}'));
+    }
+
+    #[test]
+    fn rasterize_fitted_shrinks_oversized_glyphs_into_the_cell() {
+        let font = embedded();
+        let px = 34.0;
+        let line = font.horizontal_line_metrics(px).expect("line metrics");
+        let (cell_w, cell_h) = terminal_cell_pixel_size(&font, px, line.new_line_size);
+        let (cell_w, cell_h) = (cell_w.round(), cell_h.round());
+
+        // Nerd Font icons in the non-"Mono" variant are routinely ~2 cells wide.
+        for ch in ['\u{e0b0}', '\u{f015}', '\u{f07b}', '\u{f121}'] {
+            let (m, bmp) = rasterize_fitted(&font, ch, px, cell_w, cell_h);
+            assert_eq!(
+                bmp.len(),
+                m.width * m.height,
+                "bitmap must stay tightly packed"
+            );
+            assert!(
+                m.width as f32 <= cell_w && m.height as f32 <= cell_h,
+                "U+{:04X} rasterized {}x{}, does not fit cell {cell_w}x{cell_h}",
+                ch as u32,
+                m.width,
+                m.height,
+            );
+        }
+    }
+
+    #[test]
+    fn rasterize_fitted_leaves_ascii_untouched() {
+        let font = embedded();
+        let px = 34.0;
+        let line = font.horizontal_line_metrics(px).expect("line metrics");
+        let (cell_w, cell_h) = terminal_cell_pixel_size(&font, px, line.new_line_size);
+
+        // ASCII already fits, so this must be the no-op fast path - identical to a
+        // plain rasterize, which is what keeps text pixel-for-pixel as it was.
+        for ch in ['M', 'g', '@', '.'] {
+            let (fitted, _) = rasterize_fitted(&font, ch, px, cell_w, cell_h);
+            let (plain, _) = font.rasterize(ch, px);
+            assert_eq!(fitted.width, plain.width, "{ch} width changed");
+            assert_eq!(fitted.height, plain.height, "{ch} height changed");
+        }
+    }
+
+    #[test]
+    fn packer_never_hands_out_the_reserved_solid_block() {
+        let mut p = ShelfPacker::reset();
+        for _ in 0..500 {
+            let Some((x, y)) = p.alloc(9, 18) else { break };
+            assert!(
+                x >= SOLID_PX + GUTTER || y >= SOLID_PX + GUTTER,
+                "alloc at ({x}, {y}) overlaps the solid texel"
+            );
+        }
+    }
+
+    #[test]
+    fn packer_wraps_shelves_and_reports_full() {
+        let mut p = ShelfPacker::reset();
+        let mut last_y = 0;
+        let mut wrapped = false;
+        // Fill the atlas completely; alloc must return None rather than run off the end.
+        while let Some((_, y)) = p.alloc(64, 64) {
+            if y > last_y {
+                wrapped = true;
+            }
+            last_y = y;
+            assert!(y + 64 <= ATLAS_H, "packed past the bottom edge");
+        }
+        assert!(wrapped, "packer should have moved to a new shelf");
+    }
+
+    #[test]
+    fn packer_rejects_degenerate_and_oversized_rects() {
+        let mut p = ShelfPacker::reset();
+        assert!(p.alloc(0, 10).is_none());
+        assert!(p.alloc(10, 0).is_none());
+        assert!(p.alloc(ATLAS_W, 10).is_none());
+        assert!(p.alloc(10, ATLAS_H).is_none());
+    }
+
+    #[test]
+    fn solid_uv_is_a_degenerate_rect_inside_the_reserved_block() {
+        // write_solid_texel needs a GPU queue, so recompute the UV it returns.
+        let u = (SOLID_PX as f32 * 0.5) / ATLAS_W as f32;
+        let v = (SOLID_PX as f32 * 0.5) / ATLAS_H as f32;
+        let uv = [u, v, u, v];
+        assert_eq!(uv[0], uv[2], "u must be degenerate so coverage is constant");
+        assert_eq!(uv[1], uv[3], "v must be degenerate so coverage is constant");
+        assert!(u * ATLAS_W as f32 <= SOLID_PX as f32);
+        assert!(v * ATLAS_H as f32 <= SOLID_PX as f32);
+    }
+
+    #[test]
+    fn uv_rect_stays_inside_its_allocation() {
+        let uv = uv_rect(100, 200, 10, 20);
+        assert!(uv[0] >= 100.0 / ATLAS_W as f32);
+        assert!(uv[2] <= 110.0 / ATLAS_W as f32);
+        assert!(uv[1] >= 200.0 / ATLAS_H as f32);
+        assert!(uv[3] <= 220.0 / ATLAS_H as f32);
+        assert!(uv[2] >= uv[0] && uv[3] >= uv[1]);
+    }
+
+    #[test]
+    fn resolve_font_file_rejects_blank_and_unknown_names() {
+        assert!(resolve_font_file("").is_none());
+        assert!(resolve_font_file("   ").is_none());
+        assert!(resolve_font_file("NoSuchFontFamily-Nonexistent").is_none());
+    }
+
+    #[test]
+    fn load_font_falls_back_to_bundled_face() {
+        // An unresolvable family must still yield a usable font, not an error.
+        let font = load_font("NoSuchFontFamily-Nonexistent").expect("fallback font");
+        assert!(font.has_glyph('M'));
+        assert!(font.has_glyph('\u{f015}'));
+    }
 }

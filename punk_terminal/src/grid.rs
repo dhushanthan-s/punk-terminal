@@ -32,6 +32,7 @@ pub struct TerminalGrid {
     cells: Vec<Cell>,
     cursor_col: u16,
     cursor_row: u16,
+    cursor_visible: bool,
     scroll_top: u16,
     scroll_bottom: u16,
     fg: [u8; 3],
@@ -48,6 +49,7 @@ impl TerminalGrid {
             cells: Vec::new(),
             cursor_col: 0,
             cursor_row: 0,
+            cursor_visible: true,
             scroll_top: 0,
             scroll_bottom: rows.saturating_sub(1),
             fg: DEFAULT_FG,
@@ -73,6 +75,11 @@ impl TerminalGrid {
 
     pub fn cursor(&self) -> (u16, u16) {
         (self.cursor_col, self.cursor_row)
+    }
+
+    /// Whether the cursor should be painted. Toggled by DECTCEM (`CSI ?25h` / `CSI ?25l`).
+    pub fn cursor_visible(&self) -> bool {
+        self.cursor_visible
     }
 
     pub fn is_dirty(&self) -> bool {
@@ -158,20 +165,38 @@ impl TerminalGrid {
 
     fn carriage_return(&mut self) {
         self.cursor_col = 0;
+        self.dirty = true;
     }
 
+    /// BS (0x08) moves the cursor one column left and nothing else.
+    ///
+    /// It must not erase: applications rub a character out by writing `\b \b` or
+    /// `\b` + `CSI K`, and readline emits a bare `\b` purely to reposition. Clearing
+    /// the cell here deletes text the application still expects to be on screen.
     fn backspace(&mut self) {
         if self.cursor_col > 0 {
             self.cursor_col -= 1;
-            let i = self.idx(self.cursor_col, self.cursor_row);
-            self.cells[i] = Cell::default();
             self.dirty = true;
+        }
+    }
+
+    /// DEC private mode set/reset (`CSI ? Pn h` / `CSI ? Pn l`).
+    ///
+    /// Only DECTCEM (25, cursor visibility) is implemented. Alt-screen (1049),
+    /// bracketed paste (2004) and app-cursor-keys (1) are still ignored.
+    fn set_private_mode(&mut self, params: &Params, enable: bool) {
+        for group in params.iter() {
+            if group.first().copied() == Some(25) {
+                self.cursor_visible = enable;
+                self.dirty = true;
+            }
         }
     }
 
     fn tab(&mut self) {
         let next = ((self.cursor_col / TAB_STOP) + 1) * TAB_STOP;
         self.cursor_col = next.min(self.cols.saturating_sub(1));
+        self.dirty = true;
     }
 
     fn erase_line(&mut self, mode: u16) {
@@ -361,13 +386,18 @@ fn csi_count(p: &[u16]) -> u16 {
 
 impl Perform for TerminalGrid {
     fn print(&mut self, c: char) {
+        // vte routes only 0x00-0x1F and 0x80-0x9F to `execute`, so DEL arrives here.
+        // It has no meaning on output - drop it rather than printing a blank cell.
+        if c == '\u{7f}' {
+            return;
+        }
         self.putc(c);
     }
 
     fn execute(&mut self, byte: u8) {
         match byte {
             0x07 => {}
-            0x08 | 0x7f => self.backspace(),
+            0x08 => self.backspace(),
             0x09 => self.tab(),
             0x0a..=0x0c => self.linefeed(),
             0x0d => self.carriage_return(),
@@ -375,33 +405,42 @@ impl Perform for TerminalGrid {
         }
     }
 
-    fn csi_dispatch(
-        &mut self,
-        params: &Params,
-        _intermediates: &[u8],
-        _ignore: bool,
-        action: char,
-    ) {
+    fn csi_dispatch(&mut self, params: &Params, intermediates: &[u8], _ignore: bool, action: char) {
+        // `?`-prefixed sequences are DEC private modes, not the standard CSI actions below.
+        if intermediates == b"?" {
+            match action {
+                'h' => self.set_private_mode(params, true),
+                'l' => self.set_private_mode(params, false),
+                _ => {}
+            }
+            return;
+        }
+
         match action {
             'A' => {
                 let n = params.iter().next().map(csi_count).unwrap_or(1);
                 self.cursor_row = self.cursor_row.saturating_sub(n);
+                self.dirty = true;
             }
             'B' => {
                 let n = params.iter().next().map(csi_count).unwrap_or(1);
                 self.cursor_row = (self.cursor_row + n).min(self.rows.saturating_sub(1));
+                self.dirty = true;
             }
             'C' => {
                 let n = params.iter().next().map(csi_count).unwrap_or(1);
                 self.cursor_col = (self.cursor_col + n).min(self.cols.saturating_sub(1));
+                self.dirty = true;
             }
             'D' => {
                 let n = params.iter().next().map(csi_count).unwrap_or(1);
                 self.cursor_col = self.cursor_col.saturating_sub(n);
+                self.dirty = true;
             }
             'G' | '`' => {
                 let n = params.iter().next().map(csi_count).unwrap_or(1);
                 self.cursor_col = (n.saturating_sub(1)).min(self.cols.saturating_sub(1));
+                self.dirty = true;
             }
             'H' | 'f' => {
                 let mut it = params.iter();
@@ -461,5 +500,109 @@ mod tests {
         p.advance(&mut g, b"a\nb");
         assert_eq!(g.cells()[0].ch, 'a');
         assert_eq!(g.cells()[8].ch, 'b');
+    }
+
+    #[test]
+    fn cursor_visible_defaults_true() {
+        let g = TerminalGrid::new(8, 4);
+        assert!(g.cursor_visible());
+    }
+
+    #[test]
+    fn dectcem_hides_and_shows_cursor() {
+        let mut g = TerminalGrid::new(8, 4);
+        let mut p = Parser::new();
+        p.advance(&mut g, b"\x1b[?25l");
+        assert!(!g.cursor_visible());
+        p.advance(&mut g, b"\x1b[?25h");
+        assert!(g.cursor_visible());
+    }
+
+    #[test]
+    fn unrelated_private_mode_does_not_toggle_cursor() {
+        let mut g = TerminalGrid::new(8, 4);
+        let mut p = Parser::new();
+        p.advance(&mut g, b"\x1b[?25l");
+        p.advance(&mut g, b"\x1b[?1049h");
+        assert!(
+            !g.cursor_visible(),
+            "alt-screen must not re-show the cursor"
+        );
+    }
+
+    #[test]
+    fn private_mode_h_is_not_treated_as_a_standard_csi() {
+        // `CSI ?25h` must not fall through to any `h`-adjacent standard action,
+        // and must leave the cursor position alone.
+        let mut g = TerminalGrid::new(8, 4);
+        let mut p = Parser::new();
+        p.advance(&mut g, b"\x1b[3;5H\x1b[?25l");
+        assert_eq!(g.cursor(), (4, 2));
+    }
+
+    #[test]
+    fn backspace_moves_cursor_without_erasing() {
+        // Readline emits a bare \b just to reposition; it must not destroy the cell.
+        let mut g = TerminalGrid::new(8, 4);
+        let mut p = Parser::new();
+        p.advance(&mut g, b"abc\x08\x08");
+        assert_eq!(g.cursor(), (1, 0));
+        assert_eq!(g.cells()[0].ch, 'a');
+        assert_eq!(g.cells()[1].ch, 'b');
+        assert_eq!(
+            g.cells()[2].ch,
+            'c',
+            "backspace must not erase what it passes over"
+        );
+    }
+
+    #[test]
+    fn rubout_sequence_still_erases() {
+        // The standard way to actually delete: backspace, overwrite, backspace.
+        let mut g = TerminalGrid::new(8, 4);
+        let mut p = Parser::new();
+        p.advance(&mut g, b"ab\x08 \x08");
+        assert_eq!(g.cells()[0].ch, 'a');
+        assert_eq!(g.cells()[1].ch, ' ');
+        assert_eq!(g.cursor(), (1, 0));
+    }
+
+    #[test]
+    fn backspace_stops_at_column_zero() {
+        let mut g = TerminalGrid::new(8, 4);
+        let mut p = Parser::new();
+        p.advance(&mut g, b"a\x08\x08\x08");
+        assert_eq!(g.cursor(), (0, 0));
+        assert_eq!(g.cells()[0].ch, 'a');
+    }
+
+    #[test]
+    fn del_on_output_is_ignored() {
+        let mut g = TerminalGrid::new(8, 4);
+        let mut p = Parser::new();
+        p.advance(&mut g, b"ab\x7f");
+        assert_eq!(g.cursor(), (2, 0));
+        assert_eq!(g.cells()[1].ch, 'b');
+    }
+
+    #[test]
+    fn cursor_left_then_overwrite_replaces_in_place() {
+        // Moving left over text and typing must replace, not blank-then-write.
+        let mut g = TerminalGrid::new(8, 4);
+        let mut p = Parser::new();
+        p.advance(&mut g, b"abc\x1b[2DX");
+        assert_eq!(g.cells()[0].ch, 'a');
+        assert_eq!(g.cells()[1].ch, 'X');
+        assert_eq!(g.cells()[2].ch, 'c');
+    }
+
+    #[test]
+    fn cursor_move_marks_dirty() {
+        let mut g = TerminalGrid::new(8, 4);
+        let mut p = Parser::new();
+        g.clear_dirty();
+        p.advance(&mut g, b"\x1b[2C");
+        assert!(g.is_dirty());
+        assert_eq!(g.cursor(), (2, 0));
     }
 }

@@ -277,6 +277,10 @@ impl ApplicationHandler<Vec<u8>> for App {
             }
             WindowEvent::KeyboardInput { event, .. } => {
                 if event.state == ElementState::Pressed {
+                    // Keep the cursor solid while typing instead of blinking out mid-keystroke.
+                    if let Some(r) = self.renderer.as_mut() {
+                        r.reset_cursor_blink();
+                    }
                     if let Some(bytes) = terminal_key_bytes(&event, self.mods) {
                         self.write_pty(&bytes);
                     }
